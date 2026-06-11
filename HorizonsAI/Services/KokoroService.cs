@@ -82,7 +82,7 @@ public sealed class KokoroService : IDisposable
         foreach (var entry in voices)
         {
             var sid    = ResolveSid(entry.Voice);
-            var result = _tts!.Generate(text, sid, profile.Speed);
+            var result = _tts!.Generate(text, profile.Speed, sid);
             if (result.Samples.Length > 0)
                 parts.Add((result.Samples, entry.Weight / totalWeight));
         }

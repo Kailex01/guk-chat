@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using System.Windows.Media;
 using HorizonsAI.Models;
 using HorizonsAI.Services;
 using Microsoft.Win32;
