@@ -45,6 +45,13 @@ public class ChatMessageVm : INotifyPropertyChanged
         set { _editDraft = value; OnPropertyChanged(); }
     }
 
+    private bool _isSynthesizing;
+    public bool IsSynthesizing
+    {
+        get => _isSynthesizing;
+        set { _isSynthesizing = value; OnPropertyChanged(); }
+    }
+
     public void BeginEdit()
     {
         EditDraft = _msg.Text;

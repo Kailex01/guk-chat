@@ -637,6 +637,28 @@
                                                 <TextBlock Text="{Binding TimeStr}" Foreground="#4A6070"
                                                            FontSize="9" HorizontalAlignment="Left" Margin="0,4,0,0"
                                                            Visibility="{Binding IsNotEditing, Converter={StaticResource BoolToVis}}"/>
+                                                <!-- Audio synthesizing indicator -->
+                                                <TextBlock Text="&#9834;  generating audio…"
+                                                           Foreground="#4A8AB0" FontSize="9" FontStyle="Italic"
+                                                           Margin="0,2,0,0"
+                                                           Visibility="{Binding IsSynthesizing, Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSynthesizing}" Value="True">
+                                                                    <DataTrigger.EnterActions>
+                                                                        <BeginStoryboard>
+                                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                                                 From="1.0" To="0.25" Duration="0:0:0.9"/>
+                                                                            </Storyboard>
+                                                                        </BeginStoryboard>
+                                                                    </DataTrigger.EnterActions>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </StackPanel>
                                         </Border>
                                     </Grid>

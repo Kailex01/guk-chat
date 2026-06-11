@@ -524,18 +524,22 @@ public class MainViewModel : INotifyPropertyChanged
                 StatusText = "Voice: no voice set for this character — edit the character and add a voice.";
             else
             {
+                var synthMsgs = Messages.TakeLast(lines.Count).ToList();
+                foreach (var m in synthMsgs) m.IsSynthesizing = true;
+
                 _ttsCts.Cancel();
                 _ttsCts = new CancellationTokenSource();
                 var ct = _ttsCts.Token;
                 _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct)
                     .ContinueWith(t =>
                     {
-                        if (t.IsFaulted)
+                        var ex = t.Exception?.GetBaseException();
+                        Application.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            var ex = t.Exception?.GetBaseException();
-                            Application.Current.Dispatcher.InvokeAsync(() =>
-                                StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}");
-                        }
+                            foreach (var m in synthMsgs) m.IsSynthesizing = false;
+                            if (t.IsFaulted)
+                                StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}";
+                        });
                     }, TaskScheduler.Default);
             }
         }
@@ -589,6 +593,9 @@ public class MainViewModel : INotifyPropertyChanged
             _ttsCts.Cancel();
             _ttsCts = new CancellationTokenSource();
             var ct = _ttsCts.Token;
+            var synthMsgs = Messages.TakeLast(replies.Count).ToList();
+            foreach (var m in synthMsgs) m.IsSynthesizing = true;
+
             _ = Task.Run(async () =>
             {
                 foreach (var (name, msg) in replies)
@@ -599,12 +606,13 @@ public class MainViewModel : INotifyPropertyChanged
                 }
             }, ct).ContinueWith(t =>
             {
-                if (t.IsFaulted)
+                var ex = t.Exception?.GetBaseException();
+                Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    var ex = t.Exception?.GetBaseException();
-                    Application.Current.Dispatcher.InvokeAsync(() =>
-                        StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}");
-                }
+                    foreach (var m in synthMsgs) m.IsSynthesizing = false;
+                    if (t.IsFaulted)
+                        StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}";
+                });
             }, TaskScheduler.Default);
         }
 
