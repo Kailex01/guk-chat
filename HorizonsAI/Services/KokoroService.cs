@@ -203,18 +203,21 @@ public sealed class KokoroService : IDisposable
         var bytes  = new byte[samples.Length * sizeof(float)];
         Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
 
-        // RawSourceWaveStream over a MemoryStream returns 0 bytes at EOF,
-        // which causes WaveOutEvent to fire PlaybackStopped cleanly without
-        // needing an explicit Stop() call. BufferedWaveProvider never signals
-        // EOF and would play silence forever.
-        using var ms      = new MemoryStream(bytes);
-        using var stream  = new RawSourceWaveStream(ms, format);
-        using var waveOut = new WaveOutEvent();
+        // Duration-based fallback: WaveOutEvent doesn't always fire PlaybackStopped
+        // when the stream runs dry, so we stop after the calculated duration + 400ms
+        // flush buffer. If PlaybackStopped fires first (ideal path), we return early.
+        var durationMs = (int)((double)samples.Length / sampleRate * 1000) + 400;
+
+        using var ms           = new MemoryStream(bytes);
+        using var stream       = new RawSourceWaveStream(ms, format);
+        using var waveOut      = new WaveOutEvent();
+        using var durationCts  = new CancellationTokenSource(durationMs);
+        using var linked       = CancellationTokenSource.CreateLinkedTokenSource(ct, durationCts.Token);
         waveOut.Init(stream);
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         waveOut.PlaybackStopped += (_, _) => tcs.TrySetResult();
-        using var reg = ct.Register(() => { waveOut.Stop(); tcs.TrySetResult(); });
+        using var reg = linked.Token.Register(() => { waveOut.Stop(); tcs.TrySetResult(); });
 
         waveOut.Play();
         await tcs.Task.ConfigureAwait(false);
