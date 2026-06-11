@@ -171,6 +171,14 @@ public class MainViewModel : INotifyPropertyChanged
 
     public bool HasStatus => !string.IsNullOrEmpty(_statusText);
 
+    private string _tokenUsageText = "";
+    public string TokenUsageText
+    {
+        get => _tokenUsageText;
+        private set { _tokenUsageText = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasTokenUsage)); }
+    }
+    public bool HasTokenUsage => !string.IsNullOrEmpty(_tokenUsageText);
+
     private bool _isVoiceEnabled;
     public bool IsVoiceEnabled
     {
@@ -514,6 +522,8 @@ public class MainViewModel : INotifyPropertyChanged
         }
         ScrollToBottom?.Invoke();
         StatusText = "";
+        if (_openRouter.LastUsage is { } u)
+            TokenUsageText = $"prompt {u.PromptTokens:N0}  ·  reply {u.CompletionTokens:N0}  ·  total {u.TotalTokens:N0} tokens";
         OnPropertyChanged(nameof(CanRegenerate));
 
         if (IsVoiceEnabled)
@@ -586,6 +596,8 @@ public class MainViewModel : INotifyPropertyChanged
         }
         ScrollToBottom?.Invoke();
         StatusText = "";
+        if (_openRouter.LastUsage is { } up)
+            TokenUsageText = $"prompt {up.PromptTokens:N0}  ·  reply {up.CompletionTokens:N0}  ·  total {up.TotalTokens:N0} tokens";
         OnPropertyChanged(nameof(CanRegenerate));
 
         if (IsVoiceEnabled && replies.Count > 0)

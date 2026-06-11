@@ -5,10 +5,14 @@ using HorizonsAI.Models;
 namespace HorizonsAI.Services;
 
 
+public record TokenUsage(int PromptTokens, int CompletionTokens, int TotalTokens);
+
 public class OpenRouterService
 {
     private readonly HttpClient _http;
     private const string BaseUrl = "https://openrouter.ai/api/v1";
+
+    public TokenUsage? LastUsage { get; private set; }
 
     public OpenRouterService(HttpClient http) => _http = http;
 
@@ -102,6 +106,9 @@ public class OpenRouterService
         var resp   = await _http.SendAsync(request);
         resp.EnsureSuccessStatusCode();
         var result = await resp.Content.ReadFromJsonAsync<OAIResponse>();
+        LastUsage = result?.Usage is { } u
+            ? new TokenUsage(u.PromptTokens, u.CompletionTokens, u.TotalTokens)
+            : null;
         return result?.Choices?.FirstOrDefault()?.Message?.Content?.Trim() ?? "";
     }
 
@@ -215,9 +222,14 @@ public class OpenRouterService
     }
 
     private record OAIResponse(
-        [property: JsonPropertyName("choices")] List<OAIChoice>? Choices);
+        [property: JsonPropertyName("choices")] List<OAIChoice>? Choices,
+        [property: JsonPropertyName("usage")]   OAIUsage?        Usage);
     private record OAIChoice(
         [property: JsonPropertyName("message")] OAIMessage? Message);
     private record OAIMessage(
         [property: JsonPropertyName("content")] string? Content);
+    private record OAIUsage(
+        [property: JsonPropertyName("prompt_tokens")]     int PromptTokens,
+        [property: JsonPropertyName("completion_tokens")] int CompletionTokens,
+        [property: JsonPropertyName("total_tokens")]      int TotalTokens);
 }

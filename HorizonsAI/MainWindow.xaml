@@ -703,14 +703,24 @@
                     </Button>
                 </Border>
 
-                <!-- Status (Row 3) -->
-                <TextBox Grid.Row="3" Text="{Binding StatusText, Mode=OneWay}"
-                         Foreground="#4A6070" FontSize="11" Margin="16,4,16,2"
-                         Background="Transparent" BorderThickness="0"
-                         IsReadOnly="True" TextWrapping="Wrap"
-                         MaxHeight="80" VerticalScrollBarVisibility="Auto"
-                         Cursor="IBeam"
-                         Visibility="{Binding HasStatus, Converter={StaticResource BoolToVis}}"/>
+                <!-- Status + token counter (Row 3) -->
+                <Grid Grid.Row="3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" Text="{Binding StatusText, Mode=OneWay}"
+                             Foreground="#4A6070" FontSize="11" Margin="16,4,8,2"
+                             Background="Transparent" BorderThickness="0"
+                             IsReadOnly="True" TextWrapping="Wrap"
+                             MaxHeight="80" VerticalScrollBarVisibility="Auto"
+                             Cursor="IBeam"
+                             Visibility="{Binding HasStatus, Converter={StaticResource BoolToVis}}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding TokenUsageText}"
+                               Foreground="#2A4858" FontSize="9" Margin="0,5,16,2"
+                               VerticalAlignment="Top"
+                               Visibility="{Binding HasTokenUsage, Converter={StaticResource BoolToVis}}"/>
+                </Grid>
 
                 <!-- Author's note panel (Row 4, toggleable) -->
                 <Border Grid.Row="4" Background="#080E14"
