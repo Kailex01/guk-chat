@@ -52,7 +52,7 @@ public sealed class KokoroService : IDisposable
                 .Where(File.Exists)
                 .ToList();
             if (lexicons.Count > 0)
-                config.Model.Kokoro.Lexicon = string.Join(";", lexicons);
+                config.Model.Kokoro.Lexicon = string.Join(",", lexicons);
 
             var dictDir = Path.Combine(folder, "dict");
             if (Directory.Exists(dictDir))
@@ -99,10 +99,15 @@ public sealed class KokoroService : IDisposable
         var parts = new List<(float[] samples, float weight)>(voices.Count);
         foreach (var entry in voices)
         {
-            var sid    = ResolveSid(entry.Voice);
-            var result = _tts!.Generate(text, profile.Speed, sid);
-            if (result?.Samples?.Length > 0)
-                parts.Add((result.Samples, entry.Weight / totalWeight));
+            var sid = ResolveSid(entry.Voice);
+            try
+            {
+                var result  = _tts!.Generate(text, profile.Speed, sid);
+                var samples = result?.Samples;
+                if (samples?.Length > 0)
+                    parts.Add((samples, entry.Weight / totalWeight));
+            }
+            catch { /* native generation failed for this voice — skip it */ }
         }
 
         if (parts.Count == 0) return [];
