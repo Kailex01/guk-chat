@@ -72,13 +72,13 @@ public sealed class KokoroService : IDisposable
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var samples = await Task.Run(() => Synthesize(text, profile), ct).ConfigureAwait(false);
+            var (samples, sampleRate) = await Task.Run(() => Synthesize(text, profile), ct).ConfigureAwait(false);
             if (ct.IsCancellationRequested || samples.Length == 0) return;
 
-            samples = ApplyPitch(samples, profile.PitchSemitones);
+            samples = ApplyPitch(samples, profile.PitchSemitones, sampleRate);
             ApplyVolume(samples, profile.Volume);
 
-            await PlayAsync(samples, ct).ConfigureAwait(false);
+            await PlayAsync(samples, sampleRate, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -88,15 +88,16 @@ public sealed class KokoroService : IDisposable
 
     // ── Synthesis ──────────────────────────────────────────────────────────────
 
-    private float[] Synthesize(string text, VoiceProfile profile)
+    private (float[] Samples, int SampleRate) Synthesize(string text, VoiceProfile profile)
     {
         var voices = profile.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
-        if (voices.Count == 0) return [];
+        if (voices.Count == 0) return ([], SampleRate);
 
         var totalWeight = voices.Sum(v => v.Weight);
         if (totalWeight <= 0f) totalWeight = 1f;
 
-        var parts = new List<(float[] samples, float weight)>(voices.Count);
+        var parts      = new List<(float[] samples, float weight)>(voices.Count);
+        var sampleRate = SampleRate; // updated from first successful result
         foreach (var entry in voices)
         {
             var sid = ResolveSid(entry.Voice);
@@ -105,13 +106,17 @@ public sealed class KokoroService : IDisposable
                 var result  = _tts!.Generate(text, profile.Speed, sid);
                 var samples = result?.Samples;
                 if (samples?.Length > 0)
+                {
+                    sampleRate = result!.SampleRate > 0 ? result.SampleRate : SampleRate;
                     parts.Add((samples, entry.Weight / totalWeight));
+                }
             }
             catch { /* native generation failed for this voice — skip it */ }
         }
 
-        if (parts.Count == 0) return [];
-        return parts.Count == 1 ? parts[0].samples : BlendAudio(parts);
+        if (parts.Count == 0) return ([], sampleRate);
+        var mixed = parts.Count == 1 ? parts[0].samples : BlendAudio(parts);
+        return (mixed, sampleRate);
     }
 
     private static float[] BlendAudio(List<(float[] samples, float weight)> parts)
@@ -158,12 +163,12 @@ public sealed class KokoroService : IDisposable
 
     // ── Post-processing ────────────────────────────────────────────────────────
 
-    private static float[] ApplyPitch(float[] samples, float semitones)
+    private static float[] ApplyPitch(float[] samples, float semitones, int sampleRate)
     {
         if (Math.Abs(semitones) < 0.01f) return samples;
 
         float factor = MathF.Pow(2f, semitones / 12f);
-        var   format = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, 1);
+        var   format = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
         var   bytes  = new byte[samples.Length * sizeof(float)];
         Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
 
@@ -190,25 +195,25 @@ public sealed class KokoroService : IDisposable
 
     // ── Playback ───────────────────────────────────────────────────────────────
 
-    private static async Task PlayAsync(float[] samples, CancellationToken ct)
+    private static async Task PlayAsync(float[] samples, int sampleRate, CancellationToken ct)
     {
         if (samples.Length == 0 || ct.IsCancellationRequested) return;
 
-        var format   = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, 1);
-        var bytes    = new byte[samples.Length * sizeof(float)];
+        var format = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
+        var bytes  = new byte[samples.Length * sizeof(float)];
         Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
 
-        var durationSec = (double)samples.Length / SampleRate;
-        var provider    = new BufferedWaveProvider(format) { DiscardOnBufferOverflow = false };
-        provider.BufferDuration = TimeSpan.FromSeconds(durationSec + 1.0);
-        provider.AddSamples(bytes, 0, bytes.Length);
-
+        // RawSourceWaveStream over a MemoryStream returns 0 bytes at EOF,
+        // which causes WaveOutEvent to fire PlaybackStopped cleanly without
+        // needing an explicit Stop() call. BufferedWaveProvider never signals
+        // EOF and would play silence forever.
+        using var ms      = new MemoryStream(bytes);
+        using var stream  = new RawSourceWaveStream(ms, format);
         using var waveOut = new WaveOutEvent();
-        waveOut.Init(provider);
+        waveOut.Init(stream);
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         waveOut.PlaybackStopped += (_, _) => tcs.TrySetResult();
-
         using var reg = ct.Register(() => { waveOut.Stop(); tcs.TrySetResult(); });
 
         waveOut.Play();
