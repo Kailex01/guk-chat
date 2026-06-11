@@ -28,8 +28,13 @@ public sealed class KokoroService : IDisposable
         if (_tts != null || !IsModelReady) return;
 
         var folder = AppConfig.TtsFolder;
+
+        // The multilingual archive names the file kokoro-multi-lang-v1_1.onnx, not model.onnx
+        var onnxFile = Directory.GetFiles(folder, "*.onnx").FirstOrDefault()
+            ?? throw new FileNotFoundException("No .onnx model file found in tts folder.");
+
         var config = new OfflineTtsConfig();
-        config.Model.Kokoro.Model   = Path.Combine(folder, "model.onnx");
+        config.Model.Kokoro.Model   = onnxFile;
         config.Model.Kokoro.Voices  = Path.Combine(folder, "voices.bin");
         config.Model.Kokoro.Tokens  = Path.Combine(folder, "tokens.txt");
         config.Model.Kokoro.DataDir = Path.Combine(folder, "espeak-ng-data");
