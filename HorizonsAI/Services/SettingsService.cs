@@ -4,18 +4,13 @@ namespace HorizonsAI.Services;
 
 public static class SettingsService
 {
-    private static readonly string _path = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "settings.json");
-
     public static AppSettings Load()
     {
+        var path = AppConfig.SettingsFile;
         try
         {
-            if (File.Exists(_path))
-            {
-                var json = File.ReadAllText(_path);
-                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-            }
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path)) ?? new AppSettings();
         }
         catch { }
         return new AppSettings();
@@ -23,7 +18,8 @@ public static class SettingsService
 
     public static void Save(AppSettings settings)
     {
-        var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_path, json);
+        Directory.CreateDirectory(Path.GetDirectoryName(AppConfig.SettingsFile)!);
+        File.WriteAllText(AppConfig.SettingsFile,
+            JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
     }
 }

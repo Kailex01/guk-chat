@@ -5,13 +5,13 @@ namespace HorizonsAI.ViewModels;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    private readonly HttpClient  _http   = new() { Timeout = TimeSpan.FromSeconds(30) };
-    private readonly BotAiService _botAi;
+    private readonly HttpClient        _http   = new() { Timeout = TimeSpan.FromSeconds(60) };
+    private readonly OpenRouterService _openRouter;
     private readonly Dictionary<string, ObservableCollection<ChatMessage>> _conversations = new();
 
-    // ── Character sidebar ──────────────────────────────────────────────────────
+    // ── Sidebar ────────────────────────────────────────────────────────────────
 
-    public ObservableCollection<CharacterItem> Characters { get; } = new();
+    public ObservableCollection<CategoryGroup> Categories { get; } = new();
 
     private CharacterItem? _selectedCharacter;
     public CharacterItem? SelectedCharacter
@@ -20,7 +20,9 @@ public class MainViewModel : INotifyPropertyChanged
         set
         {
             if (_selectedCharacter == value) return;
+            if (_selectedCharacter != null) _selectedCharacter.IsSelected = false;
             _selectedCharacter = value;
+            if (_selectedCharacter != null) _selectedCharacter.IsSelected = true;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ActivePortrait));
             OnPropertyChanged(nameof(ActiveCharacterName));
@@ -29,6 +31,8 @@ public class MainViewModel : INotifyPropertyChanged
             SwitchConversation();
         }
     }
+
+    public ICommand SelectCharacterCommand { get; }
 
     // ── Active character header ────────────────────────────────────────────────
 
@@ -67,7 +71,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private string _statusText = "Connecting…";
+    private string _statusText = "";
     public string StatusText
     {
         get => _statusText;
@@ -87,7 +91,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public ICommand SendCommand { get; }
 
-    // ── Scroll-to-bottom signal ────────────────────────────────────────────────
+    // ── Scroll signal ──────────────────────────────────────────────────────────
 
     public event Action? ScrollToBottom;
 
@@ -96,56 +100,61 @@ public class MainViewModel : INotifyPropertyChanged
     public MainViewModel()
     {
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HorizonsAI/1.0");
-        _botAi = new BotAiService(_http);
+        _openRouter = new OpenRouterService(_http);
+
         SendCommand = new RelayCommand(
             async _ => await SendMessageAsync(),
             _ => !IsSending && SelectedCharacter != null && !string.IsNullOrWhiteSpace(InputText));
+
+        SelectCharacterCommand = new RelayCommand(
+            p => { if (p is CharacterItem item) SelectedCharacter = item; return Task.CompletedTask; });
     }
 
-    // ── Settings changed ───────────────────────────────────────────────────────
+    // ── Character management ───────────────────────────────────────────────────
 
-    public void OnSettingsChanged()
+    public void LoadCharacters()
     {
-        // Rebuild the HttpClient base address is not needed — BotAiService reads
-        // AppConfig.Current at call time. Just signal the UI if needed.
-        StatusText = Characters.Count == 0 ? "Connecting…" : "";
+        var previousId  = _selectedCharacter?.Character.Id;
+        var allChars    = CharacterService.LoadAll();
+
+        Categories.Clear();
+
+        foreach (var group in allChars.GroupBy(c => c.Category))
+        {
+            var cat = new CategoryGroup(group.Key);
+            foreach (var c in group)
+                cat.Characters.Add(new CharacterItem(c));
+            Categories.Add(cat);
+        }
+
+        // Restore selection if the character still exists
+        if (previousId != null)
+        {
+            var match = Categories.SelectMany(g => g.Characters)
+                                  .FirstOrDefault(i => i.Character.Id == previousId);
+            if (match != null) SelectedCharacter = match;
+        }
+
+        StatusText = Categories.Count == 0
+            ? "No characters yet — click [+] to add one."
+            : "";
     }
 
-    // ── Startup ────────────────────────────────────────────────────────────────
-
-    public async Task InitializeAsync()
+    public void DeleteCharacter(CharacterItem item)
     {
-        try
-        {
-            var chars = await _botAi.GetCharactersAsync();
-            foreach (var c in chars)
-                Characters.Add(new CharacterItem(c));
-            StatusText = Characters.Count > 0 ? "" : "No characters found. Add some in bot_ai.";
-            _ = LoadPortraitsAsync();
-        }
-        catch (Exception ex)
-        {
-            StatusText = $"Could not reach bot_ai: {ex.Message}";
-        }
+        CharacterService.Delete(item.Character);
+        if (SelectedCharacter == item) SelectedCharacter = null;
+        LoadCharacters();
     }
 
-    private async Task LoadPortraitsAsync()
-    {
-        foreach (var item in Characters.ToList())
-        {
-            if (item.Character.PortraitUrl is null) continue;
-            item.Portrait = await _botAi.GetPortraitAsync(item.Character.PortraitUrl);
-            if (item == _selectedCharacter)
-                OnPropertyChanged(nameof(ActivePortrait));
-        }
-    }
+    public void OnSettingsChanged() { }
 
     // ── Conversation management ────────────────────────────────────────────────
 
     private void SwitchConversation()
     {
         if (_selectedCharacter is null) return;
-        var key = _selectedCharacter.Character.NpcName;
+        var key = _selectedCharacter.Character.Id;
         if (!_conversations.ContainsKey(key))
             _conversations[key] = new ObservableCollection<ChatMessage>();
         Messages   = _conversations[key];
@@ -174,13 +183,11 @@ public class MainViewModel : INotifyPropertyChanged
         try
         {
             StatusText = $"{SelectedCharacter.DisplayName} is thinking…";
-            var lines = await _botAi.ChatAsync(SelectedCharacter.Character, text);
-
-            var spoken    = lines.DefaultIfEmpty("…").ToList();
-            var charName  = SelectedCharacter.DisplayName;
+            var lines      = await _openRouter.ChatAsync(SelectedCharacter.Character, Messages.SkipLast(0), text);
+            var charName   = SelectedCharacter.DisplayName;
             var voiceModel = SelectedCharacter.Character.VoiceModel;
 
-            foreach (var line in spoken)
+            foreach (var line in lines)
             {
                 Messages.Add(new ChatMessage
                 {
@@ -195,7 +202,7 @@ public class MainViewModel : INotifyPropertyChanged
             StatusText = "";
 
             if (IsVoiceEnabled)
-                _ = PiperService.SpeakLinesAsync(spoken, charName, voiceModel);
+                _ = PiperService.SpeakLinesAsync(lines, charName, voiceModel);
         }
         catch (Exception ex)
         {

@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Settings"
-        Width="500" Height="340"
-        MinWidth="400" MinHeight="300"
+        Width="520" Height="400"
+        MinWidth="440" MinHeight="360"
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="#0F1923"
@@ -27,8 +27,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" Width="38" Height="32">
-                            <TextBlock Text="{TemplateBinding Content}"
-                                       Foreground="{TemplateBinding Foreground}"
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -40,23 +39,20 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#4A6070"/>
             <Setter Property="FontSize"   Value="10"/>
             <Setter Property="Margin"     Value="0,0,0,4"/>
         </Style>
-
         <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Background"     Value="#111E2A"/>
-            <Setter Property="Foreground"     Value="#D4C5A0"/>
-            <Setter Property="BorderBrush"    Value="#1E3A50"/>
+            <Setter Property="Background"      Value="#111E2A"/>
+            <Setter Property="Foreground"      Value="#D4C5A0"/>
+            <Setter Property="BorderBrush"     Value="#1E3A50"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding"        Value="8,6"/>
-            <Setter Property="FontSize"       Value="12"/>
-            <Setter Property="CaretBrush"     Value="#C8A020"/>
+            <Setter Property="Padding"         Value="8,6"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="CaretBrush"      Value="#C8A020"/>
         </Style>
-
         <Style x:Key="BrowseBtn" TargetType="Button">
             <Setter Property="Background"      Value="#1E3A50"/>
             <Setter Property="Foreground"      Value="#D4C5A0"/>
@@ -67,10 +63,9 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                            <TextBlock Text="{TemplateBinding Content}"
-                                       Foreground="{TemplateBinding Foreground}"
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                        FontSize="{TemplateBinding FontSize}"/>
                         </Border>
@@ -83,34 +78,9 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style x:Key="SaveBtn" TargetType="Button">
-            <Setter Property="Background"      Value="#8B6000"/>
-            <Setter Property="Foreground"      Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding"         Value="24,8"/>
-            <Setter Property="FontSize"        Value="12"/>
-            <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Cursor"          Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                CornerRadius="4" Padding="{TemplateBinding Padding}">
-                            <TextBlock Text="{TemplateBinding Content}"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontSize="{TemplateBinding FontSize}"
-                                       FontWeight="{TemplateBinding FontWeight}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#A87800"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <Style x:Key="SaveBtn" TargetType="Button" BasedOn="{StaticResource BrowseBtn}">
+            <Setter Property="Background"  Value="#8B6000"/>
+            <Setter Property="FontWeight"  Value="Bold"/>
         </Style>
     </Window.Resources>
 
@@ -121,7 +91,6 @@
             <RowDefinition Height="52"/>
         </Grid.RowDefinitions>
 
-        <!-- Title bar -->
         <Grid Grid.Row="0" Background="#080E14" MouseLeftButtonDown="TitleBar_Drag">
             <TextBlock Text="SETTINGS" Foreground="#C8A020" FontSize="10" FontWeight="Bold"
                        VerticalAlignment="Center" Margin="14,0"/>
@@ -129,54 +98,54 @@
                     HorizontalAlignment="Right" Click="Cancel_Click"/>
         </Grid>
 
-        <!-- Fields -->
-        <StackPanel Grid.Row="1" Margin="20,16,20,0">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,16,20,0">
+            <StackPanel>
+                <TextBlock Text="OPENROUTER API KEY" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="ApiKeyBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
 
-            <TextBlock Text="BOT AI URL" Style="{StaticResource FieldLabel}"/>
-            <TextBox x:Name="BotAiUrlBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
+                <TextBlock Text="DEFAULT LLM MODEL" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="DefaultModelBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
 
-            <TextBlock Text="YOUR NAME (speaker)" Style="{StaticResource FieldLabel}"/>
-            <TextBox x:Name="SpeakerNameBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
+                <TextBlock Text="YOUR NAME (how you appear to characters)" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="SpeakerNameBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
 
-            <TextBlock Text="PIPER EXE PATH" Style="{StaticResource FieldLabel}"/>
-            <Grid Margin="0,0,0,14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="PiperExeBox" Style="{StaticResource FieldBox}"/>
-                <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
-                        Click="BrowsePiperExe_Click"/>
-            </Grid>
+                <TextBlock Text="PIPER EXE PATH" Style="{StaticResource FieldLabel}"/>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="PiperExeBox" Style="{StaticResource FieldBox}"/>
+                    <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
+                            Click="BrowsePiperExe_Click"/>
+                </Grid>
 
-            <TextBlock Text="NARRATOR VOICE MODEL (for *emotes*, leave blank to use character voice)"
-                       Style="{StaticResource FieldLabel}"/>
-            <TextBox x:Name="NarratorModelBox" Style="{StaticResource FieldBox}"
-                     Margin="0,0,0,14"/>
+                <TextBlock Text="PIPER MODELS FOLDER" Style="{StaticResource FieldLabel}"/>
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="PiperModelsBox" Style="{StaticResource FieldBox}"/>
+                    <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
+                            Click="BrowsePiperModels_Click"/>
+                </Grid>
 
-            <TextBlock Text="PIPER MODELS FOLDER" Style="{StaticResource FieldLabel}"/>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="PiperModelsBox" Style="{StaticResource FieldBox}"/>
-                <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
-                        Click="BrowsePiperModels_Click"/>
-            </Grid>
-        </StackPanel>
+                <TextBlock Text="NARRATOR VOICE MODEL (for *emotes*, leave blank to use character voice)"
+                           Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="NarratorModelBox" Style="{StaticResource FieldBox}" Margin="0,0,0,4"/>
+            </StackPanel>
+        </ScrollViewer>
 
-        <!-- Save / Cancel -->
-        <Border Grid.Row="2" Background="#080E14"
-                BorderBrush="#1E3A50" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#080E14" BorderBrush="#1E3A50" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
                         VerticalAlignment="Center" Margin="0,0,16,0">
                 <Button Content="Cancel" Style="{StaticResource BrowseBtn}"
                         Margin="0,0,8,0" Padding="16,7" Click="Cancel_Click"/>
                 <Button Content="Save" Style="{StaticResource SaveBtn}"
-                        Click="Save_Click"/>
+                        Padding="24,7" Click="Save_Click"/>
             </StackPanel>
         </Border>
     </Grid>

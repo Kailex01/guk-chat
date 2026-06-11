@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="Horizons AI"
+        Title="Horizon's AI"
         Width="1000" Height="680"
         MinWidth="750" MinHeight="500"
         WindowStyle="None"
@@ -10,18 +10,14 @@
         Background="#0F1923"
         WindowStartupLocation="CenterScreen">
 
-    <!-- WindowChrome: gives us full-edge resize + custom title bar on a borderless window -->
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome ResizeBorderThickness="5"
-                            CaptionHeight="0"
-                            GlassFrameThickness="0"
-                            CornerRadius="0"/>
+        <shell:WindowChrome ResizeBorderThickness="5" CaptionHeight="0"
+                            GlassFrameThickness="0" CornerRadius="0"/>
     </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- Reusable title-bar button style -->
         <Style x:Key="TitleBtn" TargetType="Button">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -33,8 +29,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" Width="38" Height="32">
-                            <TextBlock Text="{TemplateBinding Content}"
-                                       Foreground="{TemplateBinding Foreground}"
+                            <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -55,48 +50,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Flat ListBox item -->
-        <Style x:Key="CharListItem" TargetType="ListBoxItem">
-            <Setter Property="Padding"                    Value="0"/>
-            <Setter Property="Margin"                     Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-            <Setter Property="Background"                 Value="Transparent"/>
-            <Setter Property="BorderThickness"            Value="0"/>
-            <Setter Property="Cursor"                     Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="#C8A020"
-                                BorderThickness="3,0,0,0"
-                                Padding="10,8">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="BorderThickness" Value="0,0,0,0"/>
-                                </Style>
-                            </Border.Style>
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bd" Property="Background"       Value="#1A2E40"/>
-                                <Setter TargetName="Bd" Property="BorderThickness"  Value="3,0,0,0"/>
-                            </Trigger>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True"/>
-                                    <Condition Property="IsSelected"  Value="False"/>
-                                </MultiTrigger.Conditions>
-                                <Setter TargetName="Bd" Property="Background" Value="#111E2A"/>
-                            </MultiTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Send / action button -->
         <Style x:Key="ActionBtn" TargetType="Button">
             <Setter Property="Background"      Value="#8B6000"/>
             <Setter Property="Foreground"      Value="White"/>
@@ -108,15 +61,11 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4">
                             <TextBlock Text="{TemplateBinding Content}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{TemplateBinding Foreground}"
-                                       FontSize="14"/>
+                                       Foreground="{TemplateBinding Foreground}" FontSize="14"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="#A87800"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="#6A4800"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Bd" Property="Background" Value="#3A2A00"/>
@@ -128,32 +77,77 @@
             </Setter>
         </Style>
 
-        <!-- Voice toggle button -->
         <Style x:Key="VoiceToggleBtn" TargetType="ToggleButton">
             <Setter Property="Background"      Value="#0A1018"/>
-            <Setter Property="Foreground"      Value="#4A6070"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush"     Value="#1E3A50"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="4">
                             <TextBlock Text="{TemplateBinding Content}"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       FontSize="16"/>
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bd" Property="Background"   Value="#1A3A2A"/>
-                                <Setter TargetName="Bd" Property="BorderBrush"  Value="#2A8040"/>
+                                <Setter TargetName="Bd" Property="Background"  Value="#1A3A2A"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#2A8040"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background"   Value="#111E2A"/>
+                                <Setter TargetName="Bd" Property="Background" Value="#111E2A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Category expander header button -->
+        <Style x:Key="CategoryHeader" TargetType="Button">
+            <Setter Property="Background"           Value="Transparent"/>
+            <Setter Property="BorderThickness"      Value="0"/>
+            <Setter Property="HorizontalAlignment"  Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor"               Value="Hand"/>
+            <Setter Property="Padding"              Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#111E2A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Character row button -->
+        <Style x:Key="CharRowBtn" TargetType="Button">
+            <Setter Property="Background"           Value="Transparent"/>
+            <Setter Property="BorderThickness"      Value="0"/>
+            <Setter Property="HorizontalAlignment"  Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor"               Value="Hand"/>
+            <Setter Property="Padding"              Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="#C8A020" BorderThickness="0,0,0,0" Padding="10,7">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#111E2A"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -168,109 +162,190 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ═══════════════════════════════════════════════════════════════════ -->
-        <!-- Title bar — the whole bar is a drag handle; buttons override that  -->
-        <!-- ═══════════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="0" Background="#080E14"
-              MouseLeftButtonDown="TitleBar_Drag">
-            <TextBlock Text="GUKTOWN CHAT"
+        <!-- ═══ Title bar ═══ -->
+        <Grid Grid.Row="0" Background="#080E14" MouseLeftButtonDown="TitleBar_Drag">
+            <TextBlock Text="HORIZON'S AI"
                        Foreground="#C8A020" FontSize="10" FontWeight="Bold"
                        VerticalAlignment="Center" Margin="14,0"/>
-            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal"
-                        Margin="0,0,0,0" VerticalAlignment="Center">
-                <Button Content="⚙" Style="{StaticResource TitleBtn}" Click="Settings_Click"
-                        ToolTip="Settings"/>
-                <Button Content="─" Style="{StaticResource TitleBtn}" Click="Minimize_Click"
-                        ToolTip="Minimize"/>
-                <Button Content="⬜" Style="{StaticResource TitleBtn}" Click="MaxRestore_Click"
-                        ToolTip="Maximize / Restore" x:Name="MaxBtn"/>
-                <Button Content="✕" Style="{StaticResource CloseTitleBtn}" Click="Close_Click"
-                        ToolTip="Close"/>
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="📖" Style="{StaticResource TitleBtn}" Click="Lorebook_Click"  ToolTip="Lorebook"/>
+                <Button Content="⚙"  Style="{StaticResource TitleBtn}" Click="Settings_Click" ToolTip="Settings"/>
+                <Button Content="─"  Style="{StaticResource TitleBtn}" Click="Minimize_Click" ToolTip="Minimize"/>
+                <Button Content="⬜" Style="{StaticResource TitleBtn}" Click="MaxRestore_Click" ToolTip="Maximize"/>
+                <Button Content="✕"  Style="{StaticResource CloseTitleBtn}" Click="Close_Click" ToolTip="Close"/>
             </StackPanel>
         </Grid>
 
-        <!-- ═══════════════════════════════════════════════════════════════════ -->
-        <!-- Main layout: sidebar | splitter | chat area                        -->
-        <!-- ═══════════════════════════════════════════════════════════════════ -->
+        <!-- ═══ Main content ═══ -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="220" MinWidth="160" MaxWidth="360"/>
                 <ColumnDefinition Width="4"/>
-                <ColumnDefinition Width="*"   MinWidth="400"/>
+                <ColumnDefinition Width="*" MinWidth="400"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Drag to resize sidebar ↔ chat -->
-            <GridSplitter Grid.Column="1"
-                          Width="4"
-                          Background="#1E3A50"
-                          HorizontalAlignment="Stretch"
-                          VerticalAlignment="Stretch"
-                          ResizeBehavior="PreviousAndNext"
-                          Cursor="SizeWE"/>
+            <GridSplitter Grid.Column="1" Width="4" Background="#1E3A50"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          ResizeBehavior="PreviousAndNext" Cursor="SizeWE"/>
 
-            <!-- ─────────────────────────────────────────────────────────────── -->
-            <!-- SIDEBAR                                                         -->
-            <!-- ─────────────────────────────────────────────────────────────── -->
+            <!-- ─── Sidebar ─── -->
             <Grid Grid.Column="0" Background="#0A1018">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="44"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Sidebar header -->
                 <Border Grid.Row="0" Background="#080E14"
                         BorderBrush="#1E3A50" BorderThickness="0,0,0,1">
-                    <TextBlock Text="CHARACTERS"
-                               Foreground="#C8A020" FontSize="9" FontWeight="Bold"
-                               VerticalAlignment="Center" Margin="14,0"/>
+                    <Grid Margin="14,0,8,0">
+                        <TextBlock Text="CHARACTERS" Foreground="#C8A020"
+                                   FontSize="9" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Content="+" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Width="24" Height="24" Click="AddCharacter_Click"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                                ToolTip="Add Character">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Background"      Value="#1E3A50"/>
+                                    <Setter Property="Foreground"      Value="#C8A020"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="FontSize"        Value="16"/>
+                                    <Setter Property="FontWeight"      Value="Bold"/>
+                                    <Setter Property="Cursor"          Value="Hand"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3">
+                                                    <TextBlock Text="{TemplateBinding Content}"
+                                                               Foreground="{TemplateBinding Foreground}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontSize="{TemplateBinding FontSize}"
+                                                               FontWeight="{TemplateBinding FontWeight}"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Bd" Property="Background" Value="#2A4E6A"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
                 </Border>
 
-                <ListBox Grid.Row="1"
-                         ItemsSource="{Binding Characters}"
-                         SelectedItem="{Binding SelectedCharacter}"
-                         Background="Transparent"
-                         BorderThickness="0"
-                         ItemContainerStyle="{StaticResource CharListItem}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="44"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <!-- Portrait thumbnail or placeholder -->
-                                <Border Width="36" Height="36" CornerRadius="18"
-                                        Background="#1E3A50" ClipToBounds="True"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Image Source="{Binding Portrait}" Stretch="UniformToFill"/>
-                                </Border>
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
-                                    <TextBlock Text="{Binding DisplayName}"
-                                               Foreground="#D4C5A0" FontSize="12" FontWeight="SemiBold"
-                                               TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding CategoryBadge}"
-                                               Foreground="#4A6070" FontSize="9"/>
+                <!-- Category groups -->
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding Categories}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <!-- Category header -->
+                                    <Button Style="{StaticResource CategoryHeader}"
+                                            Click="CategoryHeader_Click" Tag="{Binding}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="16"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       Foreground="#4A6070" FontSize="9" FontWeight="Bold"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Foreground="#4A6070" FontSize="9"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="▼"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsExpanded}" Value="False">
+                                                                <Setter Property="Text" Value="▶"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- Character list -->
+                                    <ItemsControl ItemsSource="{Binding Characters}"
+                                                  Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource CharRowBtn}"
+                                                        Command="{Binding DataContext.SelectCharacterCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}">
+                                                    <Button.ContextMenu>
+                                                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                                                                              RelativeSource={RelativeSource Self}}">
+                                                            <MenuItem Header="Edit"   Click="EditCharacter_Click"/>
+                                                            <MenuItem Header="Delete" Click="DeleteCharacter_Click"/>
+                                                        </ContextMenu>
+                                                    </Button.ContextMenu>
+                                                    <Button.Template>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="Bd" Padding="10,7"
+                                                                    BorderThickness="3,0,0,0"
+                                                                    BorderBrush="Transparent">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="44"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Border Width="36" Height="36" CornerRadius="18"
+                                                                            Background="#1E3A50" ClipToBounds="True"
+                                                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                        <Image Source="{Binding Portrait}" Stretch="UniformToFill"/>
+                                                                    </Border>
+                                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
+                                                                        <TextBlock Text="{Binding DisplayName}"
+                                                                                   Foreground="#D4C5A0" FontSize="12" FontWeight="SemiBold"
+                                                                                   TextTrimming="CharacterEllipsis"/>
+                                                                        <TextBlock Text="{Binding CategoryBadge}"
+                                                                                   Foreground="#4A6070" FontSize="9"/>
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background"     Value="#1A2E40"/>
+                                                                    <Setter TargetName="Bd" Property="BorderBrush"    Value="#C8A020"/>
+                                                                </DataTrigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#111E2A"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Button.Template>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </Grid>
 
-            <!-- ─────────────────────────────────────────────────────────────── -->
-            <!-- CHAT AREA                                                       -->
-            <!-- ─────────────────────────────────────────────────────────────── -->
+            <!-- ─── Chat area ─── -->
             <Grid Grid.Column="2" Background="#0F1923">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="68"/>    <!-- character header        -->
-                    <RowDefinition Height="*"/>     <!-- message list            -->
-                    <RowDefinition Height="Auto"/>  <!-- status bar              -->
-                    <RowDefinition Height="60"/>    <!-- input bar               -->
+                    <RowDefinition Height="68"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="60"/>
                 </Grid.RowDefinitions>
 
                 <!-- Character header -->
-                <Border Grid.Row="0"
-                        Background="#0A1018"
+                <Border Grid.Row="0" Background="#0A1018"
                         BorderBrush="#1E3A50" BorderThickness="0,0,0,1">
                     <Grid Margin="14,0">
                         <Grid.ColumnDefinitions>
@@ -278,11 +353,10 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Border Width="44" Height="44" CornerRadius="22"
-                                Background="#1E3A50" ClipToBounds="True"
-                                VerticalAlignment="Center">
+                                Background="#1E3A50" ClipToBounds="True" VerticalAlignment="Center">
                             <Image Source="{Binding ActivePortrait}" Stretch="UniformToFill"/>
                         </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0">
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding ActiveCharacterName}"
                                        Foreground="#D4C5A0" FontSize="15" FontWeight="Bold"/>
                             <TextBlock Text="{Binding ActiveCategoryBadge}"
@@ -291,9 +365,8 @@
                     </Grid>
                 </Border>
 
-                <!-- Message list -->
-                <ScrollViewer Grid.Row="1"
-                              x:Name="MessagesScroll"
+                <!-- Messages -->
+                <ScrollViewer Grid.Row="1" x:Name="MessagesScroll"
                               VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
                               Padding="12,8,12,4">
@@ -301,60 +374,40 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Grid Margin="0,5">
-                                    <!-- ── Player bubble (right) ── -->
-                                    <Border HorizontalAlignment="Right"
-                                            MaxWidth="520"
-                                            Background="#1A3A2A"
-                                            CornerRadius="12,12,0,12"
-                                            Padding="12,8"
+                                    <!-- Player bubble -->
+                                    <Border HorizontalAlignment="Right" MaxWidth="520"
+                                            Background="#1A3A2A" CornerRadius="12,12,0,12" Padding="12,8"
                                             Visibility="{Binding IsPlayer, Converter={StaticResource BoolToVis}}">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Text}"
-                                                       Foreground="#A8D8B0"
-                                                       FontSize="13"
-                                                       TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding TimeStr}"
-                                                       Foreground="#4A6070"
-                                                       FontSize="9"
-                                                       HorizontalAlignment="Right"
-                                                       Margin="0,4,0,0"/>
+                                            <TextBlock Text="{Binding Text}" Foreground="#A8D8B0"
+                                                       FontSize="13" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding TimeStr}" Foreground="#4A6070"
+                                                       FontSize="9" HorizontalAlignment="Right" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Border>
-
-                                    <!-- ── Character bubble (left, with portrait) ── -->
-                                    <Grid HorizontalAlignment="Left"
-                                          MaxWidth="580"
+                                    <!-- Character bubble -->
+                                    <Grid HorizontalAlignment="Left" MaxWidth="580"
                                           Visibility="{Binding IsCharacter, Converter={StaticResource BoolToVis}}">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="40"/>
                                             <ColumnDefinition Width="8"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36"
-                                                CornerRadius="18"
-                                                Background="#1E3A50"
-                                                ClipToBounds="True"
-                                                VerticalAlignment="Top"
-                                                Margin="0,2,0,0">
+                                        <Border Width="36" Height="36" CornerRadius="18"
+                                                Background="#1E3A50" ClipToBounds="True"
+                                                VerticalAlignment="Top" Margin="0,2,0,0">
                                             <Image Source="{Binding Portrait}" Stretch="UniformToFill"/>
                                         </Border>
-                                        <Border Grid.Column="2"
-                                                Background="#111E2A"
-                                                CornerRadius="0,12,12,12"
-                                                Padding="12,8">
+                                        <Border Grid.Column="2" Background="#111E2A"
+                                                CornerRadius="0,12,12,12" Padding="12,8">
                                             <StackPanel>
                                                 <TextBlock Text="{Binding SenderName}"
-                                                           Foreground="#C8A020"
-                                                           FontSize="10" FontWeight="Bold"
+                                                           Foreground="#C8A020" FontSize="10" FontWeight="Bold"
                                                            Margin="0,0,0,3"/>
-                                                <TextBlock Text="{Binding Text}"
-                                                           Foreground="#D4C5A0"
-                                                           FontSize="13"
-                                                           TextWrapping="Wrap"/>
-                                                <TextBlock Text="{Binding TimeStr}"
-                                                           Foreground="#4A6070"
-                                                           FontSize="9"
-                                                           HorizontalAlignment="Left"
+                                                <TextBlock Text="{Binding Text}" Foreground="#D4C5A0"
+                                                           FontSize="13" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding TimeStr}" Foreground="#4A6070"
+                                                           FontSize="9" HorizontalAlignment="Left"
                                                            Margin="0,4,0,0"/>
                                             </StackPanel>
                                         </Border>
@@ -365,16 +418,13 @@
                     </ItemsControl>
                 </ScrollViewer>
 
-                <!-- Status text (thinking…, errors) -->
-                <TextBlock Grid.Row="2"
-                           Text="{Binding StatusText}"
-                           Foreground="#4A6070" FontSize="11"
-                           Margin="16,4,16,2"
+                <!-- Status -->
+                <TextBlock Grid.Row="2" Text="{Binding StatusText}"
+                           Foreground="#4A6070" FontSize="11" Margin="16,4,16,2"
                            Visibility="{Binding HasStatus, Converter={StaticResource BoolToVis}}"/>
 
                 <!-- Input bar -->
-                <Border Grid.Row="3"
-                        Background="#0A1018"
+                <Border Grid.Row="3" Background="#0A1018"
                         BorderBrush="#1E3A50" BorderThickness="0,1,0,0">
                     <Grid Margin="12,8">
                         <Grid.ColumnDefinitions>
@@ -384,52 +434,21 @@
                             <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="44"/>
                         </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="0"
-                                Background="#111E2A"
-                                CornerRadius="4"
-                                BorderBrush="#1E3A50" BorderThickness="1">
+                        <Border Grid.Column="0" Background="#111E2A"
+                                CornerRadius="4" BorderBrush="#1E3A50" BorderThickness="1">
                             <TextBox x:Name="InputBox"
                                      Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
-                                     Background="Transparent"
-                                     BorderThickness="0"
-                                     Foreground="#D4C5A0"
-                                     FontSize="13"
-                                     Padding="10,7"
-                                     VerticalAlignment="Center"
-                                     CaretBrush="#C8A020"
-                                     SelectionBrush="#C8A02040"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="#D4C5A0" FontSize="13" Padding="10,7"
+                                     VerticalAlignment="Center" CaretBrush="#C8A020"
                                      IsEnabled="{Binding HasActiveCharacter}"
-                                     KeyDown="InputBox_KeyDown">
-                                <TextBox.Style>
-                                    <Style TargetType="TextBox">
-                                        <Style.Resources>
-                                            <Style TargetType="ScrollViewer">
-                                                <Setter Property="OverridesDefaultStyle" Value="True"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="ScrollViewer">
-                                                            <ScrollContentPresenter/>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Style>
-                                        </Style.Resources>
-                                    </Style>
-                                </TextBox.Style>
-                            </TextBox>
+                                     KeyDown="InputBox_KeyDown"/>
                         </Border>
-
-                        <!-- Voice toggle -->
-                        <ToggleButton Grid.Column="2"
-                                      Content="🔊"
+                        <ToggleButton Grid.Column="2" Content="🔊"
                                       Style="{StaticResource VoiceToggleBtn}"
                                       IsChecked="{Binding IsVoiceEnabled}"
-                                      ToolTip="Toggle voice (Piper TTS)"/>
-
-                        <!-- Send -->
-                        <Button Grid.Column="4"
-                                Content="▶"
+                                      ToolTip="Toggle voice"/>
+                        <Button Grid.Column="4" Content="▶"
                                 Style="{StaticResource ActionBtn}"
                                 Command="{Binding SendCommand}"
                                 ToolTip="Send (Enter)"/>

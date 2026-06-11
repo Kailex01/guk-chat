@@ -1,7 +1,6 @@
 using System.Windows.Forms;
 using System.Windows.Input;
 using HorizonsAI.Models;
-using HorizonsAI.Services;
 
 namespace HorizonsAI;
 
@@ -11,11 +10,12 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         var s = AppConfig.Current;
-        BotAiUrlBox.Text       = s.BotAiBaseUrl;
-        SpeakerNameBox.Text    = s.SpeakerName;
-        PiperExeBox.Text       = s.PiperExePath;
-        PiperModelsBox.Text    = s.PiperModelsPath;
-        NarratorModelBox.Text  = s.NarratorVoiceModel;
+        ApiKeyBox.Text        = s.OpenRouterApiKey;
+        DefaultModelBox.Text  = s.DefaultModel;
+        SpeakerNameBox.Text   = s.SpeakerName;
+        PiperExeBox.Text      = s.PiperExePath;
+        PiperModelsBox.Text   = s.PiperModelsPath;
+        NarratorModelBox.Text = s.NarratorVoiceModel;
     }
 
     private void TitleBar_Drag(object sender, MouseButtonEventArgs e) => DragMove();
@@ -24,7 +24,8 @@ public partial class SettingsWindow : Window
     {
         AppConfig.Apply(new AppSettings
         {
-            BotAiBaseUrl       = BotAiUrlBox.Text.Trim(),
+            OpenRouterApiKey   = ApiKeyBox.Text.Trim(),
+            DefaultModel       = DefaultModelBox.Text.Trim(),
             SpeakerName        = SpeakerNameBox.Text.Trim(),
             PiperExePath       = PiperExeBox.Text.Trim(),
             PiperModelsPath    = PiperModelsBox.Text.Trim(),
@@ -34,19 +35,11 @@ public partial class SettingsWindow : Window
         Close();
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
-    {
-        DialogResult = false;
-        Close();
-    }
+    private void Cancel_Click(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
 
     private void BrowsePiperExe_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog
-        {
-            Title  = "Select piper.exe",
-            Filter = "piper.exe|piper.exe|Executable|*.exe",
-        };
+        var dlg = new OpenFileDialog { Title = "Select piper.exe", Filter = "piper.exe|piper.exe|Executable|*.exe" };
         if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             PiperExeBox.Text = dlg.FileName;
     }
