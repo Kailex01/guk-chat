@@ -176,22 +176,26 @@ public class MainViewModel : INotifyPropertyChanged
             StatusText = $"{SelectedCharacter.DisplayName} is thinking…";
             var lines = await _botAi.ChatAsync(SelectedCharacter.Character, text);
 
-            foreach (var line in lines.DefaultIfEmpty("…"))
+            var spoken    = lines.DefaultIfEmpty("…").ToList();
+            var charName  = SelectedCharacter.DisplayName;
+            var voiceModel = SelectedCharacter.Character.VoiceModel;
+
+            foreach (var line in spoken)
             {
                 Messages.Add(new ChatMessage
                 {
                     Text       = line,
                     IsPlayer   = false,
-                    SenderName = SelectedCharacter.DisplayName,
+                    SenderName = charName,
                     Portrait   = SelectedCharacter.Portrait,
                     Timestamp  = DateTime.Now,
                 });
-
-                if (IsVoiceEnabled)
-                    _ = PiperService.SpeakAsync(line, SelectedCharacter.Character.VoiceModel);
             }
             ScrollToBottom?.Invoke();
             StatusText = "";
+
+            if (IsVoiceEnabled)
+                _ = PiperService.SpeakLinesAsync(spoken, charName, voiceModel);
         }
         catch (Exception ex)
         {
