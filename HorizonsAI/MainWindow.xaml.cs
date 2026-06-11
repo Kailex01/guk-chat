@@ -1,4 +1,5 @@
 using HorizonsAI.Models;
+using HorizonsAI.Services;
 using HorizonsAI.ViewModels;
 
 namespace HorizonsAI;
@@ -17,7 +18,39 @@ public partial class MainWindow : Window
                 () => MessagesScroll.ScrollToEnd(),
                 System.Windows.Threading.DispatcherPriority.Background);
 
-        Loaded += (_, _) => _vm.LoadCharacters(); // LoadCharacters calls LoadParties internally
+        _vm.TtsSetupRequested += OnTtsSetupRequested;
+
+        Loaded += (_, _) =>
+        {
+            _vm.LoadCharacters(); // LoadCharacters calls LoadParties internally
+            if (KokoroService.IsModelReady)
+                _vm.InitializeTts();
+        };
+    }
+
+    // ── TTS setup ─────────────────────────────────────────────────────────────
+
+    private bool _ttsSetupInProgress;
+    private void OnTtsSetupRequested()
+    {
+        if (_ttsSetupInProgress) return;
+        _ttsSetupInProgress = true;
+        // BeginInvoke defers so we're not running dialog code inside the property setter
+        Dispatcher.BeginInvoke(() =>
+        {
+            try
+            {
+                var dlg = new TtsSetupWindow { Owner = this };
+                if (dlg.ShowDialog() == true)
+                    _vm.InitializeTts();
+                else
+                    _vm.IsVoiceEnabled = false;
+            }
+            finally
+            {
+                _ttsSetupInProgress = false;
+            }
+        });
     }
 
     // ── Title bar ──────────────────────────────────────────────────────────────

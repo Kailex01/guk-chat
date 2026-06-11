@@ -7,9 +7,11 @@ public class MainViewModel : INotifyPropertyChanged
 {
     private readonly HttpClient        _http   = new() { Timeout = TimeSpan.FromSeconds(60) };
     private readonly OpenRouterService _openRouter;
+    private readonly KokoroService     _kokoro = new();
     private readonly Dictionary<string, ObservableCollection<ChatMessageVm>> _conversations = new();
     private readonly Dictionary<string, string> _memory = new();
     private Lorebook _lorebook = new();
+    private CancellationTokenSource _ttsCts = new();
 
     private const int SummarizeThreshold = 40;
     private const int KeepRecentCount    = 20;
@@ -173,7 +175,13 @@ public class MainViewModel : INotifyPropertyChanged
     public bool IsVoiceEnabled
     {
         get => _isVoiceEnabled;
-        set { _isVoiceEnabled = value; OnPropertyChanged(); }
+        set
+        {
+            _isVoiceEnabled = value;
+            OnPropertyChanged();
+            if (value && !KokoroService.IsModelReady)
+                TtsSetupRequested?.Invoke();
+        }
     }
 
     // ── Author's note ──────────────────────────────────────────────────────────
@@ -210,9 +218,10 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand EditCommitCommand { get; }
     public ICommand EditCancelCommand { get; }
 
-    // ── Scroll signal ──────────────────────────────────────────────────────────
+    // ── Events ─────────────────────────────────────────────────────────────────
 
     public event Action? ScrollToBottom;
+    public event Action? TtsSetupRequested;
 
     // ── Constructor ────────────────────────────────────────────────────────────
 
@@ -355,6 +364,8 @@ public class MainViewModel : INotifyPropertyChanged
         _authorsNote = AppConfig.Current.AuthorsNote;
         OnPropertyChanged(nameof(AuthorsNote));
     }
+
+    public void InitializeTts() => _kokoro.Initialize();
 
     // ── Conversation management ────────────────────────────────────────────────
 
@@ -506,7 +517,12 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanRegenerate));
 
         if (IsVoiceEnabled && charItem.Character.VoiceProfile.IsEnabled)
-            _ = Task.CompletedTask; // KokoroService.SpeakAsync — wired in Kokoro step 3
+        {
+            _ttsCts.Cancel();
+            _ttsCts = new CancellationTokenSource();
+            var ct = _ttsCts.Token;
+            _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct);
+        }
 
         AutoSave(key);
         if (Messages.Count > SummarizeThreshold)
@@ -552,17 +568,20 @@ public class MainViewModel : INotifyPropertyChanged
         StatusText = "";
         OnPropertyChanged(nameof(CanRegenerate));
 
-        if (IsVoiceEnabled)
+        if (IsVoiceEnabled && replies.Count > 0)
         {
+            _ttsCts.Cancel();
+            _ttsCts = new CancellationTokenSource();
+            var ct = _ttsCts.Token;
             _ = Task.Run(async () =>
             {
                 foreach (var (name, msg) in replies)
                 {
-                    profileMap.TryGetValue(name, out var profile);
-                    if (profile?.IsEnabled == true)
-                        await Task.CompletedTask; // KokoroService.SpeakAsync — wired in Kokoro step 3
+                    if (ct.IsCancellationRequested) break;
+                    if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
+                    await _kokoro.SpeakAsync(msg, profile, ct).ConfigureAwait(false);
                 }
-            });
+            }, ct);
         }
 
         AutoSave(key);
