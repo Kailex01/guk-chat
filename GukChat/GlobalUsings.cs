@@ -1,6 +1,7 @@
 global using System.Collections.ObjectModel;
 global using Application = System.Windows.Application;
 global using Color = System.Windows.Media.Color;
+global using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 global using System.ComponentModel;
 global using System.IO;
 global using System.Net.Http;
