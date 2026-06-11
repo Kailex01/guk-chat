@@ -2,8 +2,8 @@ using System.IO;
 using System.Net.Http;
 using System.Windows.Input;
 using System.Windows.Media;
-using SharpCompress.Archives;
 using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace HorizonsAI;
 
@@ -142,12 +142,15 @@ public partial class TtsSetupWindow : Window
 
     private static void ExtractTarBz2(string archivePath, string destFolder)
     {
-        using var archive = ArchiveFactory.Open(archivePath);
+        using var fileStream = File.OpenRead(archivePath);
+        using var reader     = ReaderFactory.Open(fileStream);
 
-        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+        while (reader.MoveToNextEntry())
         {
-            // Strip the top-level folder name (e.g. "kokoro-en-v0_19/model.onnx" → "model.onnx")
-            var parts = entry.Key?.Replace('\\', '/').Split('/') ?? [];
+            if (reader.Entry.IsDirectory) continue;
+
+            // Strip the top-level folder (e.g. "kokoro-en-v0_19/model.onnx" → "model.onnx")
+            var parts = reader.Entry.Key?.Replace('\\', '/').Split('/') ?? [];
             var rel   = string.Join(Path.DirectorySeparatorChar.ToString(),
                                     parts.Length > 1 ? parts.Skip(1) : parts);
             if (string.IsNullOrEmpty(rel)) continue;
@@ -155,9 +158,7 @@ public partial class TtsSetupWindow : Window
             var dest = Path.Combine(destFolder, rel);
             Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
 
-            using var src  = entry.OpenEntryStream();
-            using var file = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 65536);
-            src.CopyTo(file);
+            reader.WriteEntryToFile(dest, new ExtractionOptions { Overwrite = true });
         }
     }
 
