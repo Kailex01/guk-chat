@@ -26,7 +26,12 @@ public partial class MainWindow : Window
             if (KokoroService.IsModelReady)
             {
                 try { _vm.InitializeTts(); }
-                catch { /* model present but failed to load — voice stays off */ }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Voice model found but failed to load:\n\n{ex.Message}\n\nDelete the data/tts folder and re-download the model.",
+                        "Voice Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
         };
 

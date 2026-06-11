@@ -516,12 +516,19 @@ public class MainViewModel : INotifyPropertyChanged
         StatusText = "";
         OnPropertyChanged(nameof(CanRegenerate));
 
-        if (IsVoiceEnabled && charItem.Character.VoiceProfile.IsEnabled)
+        if (IsVoiceEnabled)
         {
-            _ttsCts.Cancel();
-            _ttsCts = new CancellationTokenSource();
-            var ct = _ttsCts.Token;
-            _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct);
+            if (!_kokoro.IsInitialized)
+                StatusText = "Voice: model not loaded — restart the app or re-download the model.";
+            else if (!charItem.Character.VoiceProfile.IsEnabled)
+                StatusText = "Voice: no voice set for this character — edit the character and add a voice.";
+            else
+            {
+                _ttsCts.Cancel();
+                _ttsCts = new CancellationTokenSource();
+                var ct = _ttsCts.Token;
+                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct);
+            }
         }
 
         AutoSave(key);

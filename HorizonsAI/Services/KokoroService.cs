@@ -21,6 +21,8 @@ public sealed class KokoroService : IDisposable
     public static bool IsModelReady =>
         File.Exists(Path.Combine(AppConfig.TtsFolder, "model_type.txt"));
 
+    public bool IsInitialized => _tts != null;
+
     // ── Initialization ─────────────────────────────────────────────────────────
 
     public void Initialize()
