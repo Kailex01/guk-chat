@@ -527,7 +527,13 @@ public class MainViewModel : INotifyPropertyChanged
                 _ttsCts.Cancel();
                 _ttsCts = new CancellationTokenSource();
                 var ct = _ttsCts.Token;
-                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct);
+                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct)
+                    .ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                            Application.Current.Dispatcher.InvokeAsync(() =>
+                                StatusText = $"Voice error: {t.Exception?.GetBaseException().Message}");
+                    }, TaskScheduler.Default);
             }
         }
 
@@ -588,7 +594,12 @@ public class MainViewModel : INotifyPropertyChanged
                     if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
                     await _kokoro.SpeakAsync(msg, profile, ct).ConfigureAwait(false);
                 }
-            }, ct);
+            }, ct).ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    Application.Current.Dispatcher.InvokeAsync(() =>
+                        StatusText = $"Voice error: {t.Exception?.GetBaseException().Message}");
+            }, TaskScheduler.Default);
         }
 
         AutoSave(key);
