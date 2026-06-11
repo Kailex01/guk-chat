@@ -24,7 +24,10 @@ public partial class MainWindow : Window
         {
             _vm.LoadCharacters(); // LoadCharacters calls LoadParties internally
             if (KokoroService.IsModelReady)
-                _vm.InitializeTts();
+            {
+                try { _vm.InitializeTts(); }
+                catch { /* model present but failed to load — voice stays off */ }
+            }
         };
     }
 
@@ -42,7 +45,16 @@ public partial class MainWindow : Window
             {
                 var dlg = new TtsSetupWindow { Owner = this };
                 if (dlg.ShowDialog() == true)
-                    _vm.InitializeTts();
+                {
+                    try { _vm.InitializeTts(); }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            $"Voice model loaded but failed to initialise:\n\n{ex.Message}\n\nTry restarting the app.",
+                            "Voice Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        _vm.IsVoiceEnabled = false;
+                    }
+                }
                 else
                     _vm.IsVoiceEnabled = false;
             }

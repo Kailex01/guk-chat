@@ -68,8 +68,7 @@ public partial class TtsSetupWindow : Window
         {
             await DownloadAndExtractAsync(url, AppConfig.TtsFolder, modelType, _cts.Token);
             Downloaded   = true;
-            DialogResult = true;
-            Close();
+            DialogResult = true; // automatically closes the dialog
         }
         catch (OperationCanceledException)
         {
