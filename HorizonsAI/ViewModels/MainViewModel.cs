@@ -531,8 +531,11 @@ public class MainViewModel : INotifyPropertyChanged
                     .ContinueWith(t =>
                     {
                         if (t.IsFaulted)
+                        {
+                            var ex = t.Exception?.GetBaseException();
                             Application.Current.Dispatcher.InvokeAsync(() =>
-                                StatusText = $"Voice error: {t.Exception?.GetBaseException().Message}");
+                                StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}");
+                        }
                     }, TaskScheduler.Default);
             }
         }
@@ -597,8 +600,11 @@ public class MainViewModel : INotifyPropertyChanged
             }, ct).ContinueWith(t =>
             {
                 if (t.IsFaulted)
+                {
+                    var ex = t.Exception?.GetBaseException();
                     Application.Current.Dispatcher.InvokeAsync(() =>
-                        StatusText = $"Voice error: {t.Exception?.GetBaseException().Message}");
+                        StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}");
+                }
             }, TaskScheduler.Default);
         }
 

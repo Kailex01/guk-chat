@@ -101,7 +101,7 @@ public sealed class KokoroService : IDisposable
         {
             var sid    = ResolveSid(entry.Voice);
             var result = _tts!.Generate(text, profile.Speed, sid);
-            if (result.Samples.Length > 0)
+            if (result?.Samples?.Length > 0)
                 parts.Add((result.Samples, entry.Weight / totalWeight));
         }
 
