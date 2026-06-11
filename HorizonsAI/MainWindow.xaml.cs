@@ -1,4 +1,4 @@
-using System.Windows.Input;
+using HorizonsAI.Models;
 using HorizonsAI.ViewModels;
 
 namespace HorizonsAI;
@@ -17,7 +17,7 @@ public partial class MainWindow : Window
                 () => MessagesScroll.ScrollToEnd(),
                 System.Windows.Threading.DispatcherPriority.Background);
 
-        Loaded += (_, _) => _vm.LoadCharacters();
+        Loaded += (_, _) => _vm.LoadCharacters(); // LoadCharacters calls LoadParties internally
     }
 
     // ── Title bar ──────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ public partial class MainWindow : Window
     private void ToggleMaximize() =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
 
-    // ── Sidebar ────────────────────────────────────────────────────────────────
+    // ── Character sidebar ──────────────────────────────────────────────────────
 
     private void CategoryHeader_Click(object sender, RoutedEventArgs e)
     {
@@ -49,7 +49,7 @@ public partial class MainWindow : Window
 
     private void EditCharacter_Click(object sender, RoutedEventArgs e)
     {
-        var item = GetContextItem(sender);
+        var item = GetContextItem<CharacterItem>(sender);
         if (item is null) return;
         var dlg = new CharacterEditWindow(item.Character) { Owner = this };
         if (dlg.ShowDialog() != null) _vm.LoadCharacters();
@@ -57,15 +57,30 @@ public partial class MainWindow : Window
 
     private void DeleteCharacter_Click(object sender, RoutedEventArgs e)
     {
-        var item = GetContextItem(sender);
+        var item = GetContextItem<CharacterItem>(sender);
         if (item != null) _vm.DeleteCharacter(item);
     }
 
-    private static CharacterItem? GetContextItem(object sender)
+    // ── Party sidebar ──────────────────────────────────────────────────────────
+
+    private void AddParty_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem mi && mi.Parent is ContextMenu cm)
-            return cm.DataContext as CharacterItem;
-        return null;
+        var dlg = new PartyEditWindow { Owner = this };
+        if (dlg.ShowDialog() == true) _vm.LoadParties();
+    }
+
+    private void EditParty_Click(object sender, RoutedEventArgs e)
+    {
+        var item = GetContextItem<PartyItem>(sender);
+        if (item is null) return;
+        var dlg = new PartyEditWindow(item.Party) { Owner = this };
+        if (dlg.ShowDialog() != null) _vm.LoadParties();
+    }
+
+    private void DeleteParty_Click(object sender, RoutedEventArgs e)
+    {
+        var item = GetContextItem<PartyItem>(sender);
+        if (item != null) _vm.DeleteParty(item);
     }
 
     // ── Dialogs ────────────────────────────────────────────────────────────────
@@ -78,7 +93,6 @@ public partial class MainWindow : Window
 
     private void Lorebook_Click(object sender, RoutedEventArgs e)
     {
-        // Phase 2.6 — placeholder
         MessageBox.Show("Lorebook editor coming soon.", "Horizon's AI",
             MessageBoxButton.OK, MessageBoxImage.Information);
     }
@@ -92,5 +106,14 @@ public partial class MainWindow : Window
             _vm.SendCommand.Execute(null);
             e.Handled = true;
         }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private static T? GetContextItem<T>(object sender) where T : class
+    {
+        if (sender is MenuItem mi && mi.Parent is ContextMenu cm)
+            return cm.DataContext as T;
+        return null;
     }
 }
