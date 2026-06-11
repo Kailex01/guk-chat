@@ -1,7 +1,7 @@
 using System.Windows.Input;
 using HorizonsAI.Models;
 using HorizonsAI.Services;
-using WinForms = System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace HorizonsAI;
 
@@ -187,12 +187,12 @@ public partial class CharacterEditWindow : Window
 
     private void Portrait_Click(object sender, MouseButtonEventArgs e)
     {
-        var dlg = new WinForms.OpenFileDialog
+        var dlg = new OpenFileDialog
         {
             Title  = "Select Portrait Image",
             Filter = "Image Files|*.png;*.jpg;*.jpeg;*.webp;*.bmp|All Files|*.*",
         };
-        if (dlg.ShowDialog() != WinForms.DialogResult.OK) return;
+        if (dlg.ShowDialog() != true) return;
         _pendingPortraitSource = dlg.FileName;
 
         try

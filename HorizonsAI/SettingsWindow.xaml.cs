@@ -1,6 +1,6 @@
-using System.Windows.Forms;
 using System.Windows.Input;
 using HorizonsAI.Models;
+using Microsoft.Win32;
 
 namespace HorizonsAI;
 
@@ -40,14 +40,14 @@ public partial class SettingsWindow : Window
     private void BrowsePiperExe_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog { Title = "Select piper.exe", Filter = "piper.exe|piper.exe|Executable|*.exe" };
-        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        if (dlg.ShowDialog() == true)
             PiperExeBox.Text = dlg.FileName;
     }
 
     private void BrowsePiperModels_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new FolderBrowserDialog { Description = "Select Piper models folder" };
-        if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            PiperModelsBox.Text = dlg.SelectedPath;
+        var dlg = new OpenFolderDialog { Title = "Select Piper models folder" };
+        if (dlg.ShowDialog() == true)
+            PiperModelsBox.Text = dlg.FolderName;
     }
 }
