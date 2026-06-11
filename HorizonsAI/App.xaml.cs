@@ -4,10 +4,7 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        AppConfig.Load();
-        base.OnStartup(e);
-
-        // Catch unhandled exceptions on the UI thread and show them instead of silently dying
+        // Register first so any startup exception is caught and shown rather than silently killing the app
         DispatcherUnhandledException += (_, ex) =>
         {
             MessageBox.Show(
@@ -15,5 +12,14 @@ public partial class App : Application
                 "Horizon's AI", MessageBoxButton.OK, MessageBoxImage.Error);
             ex.Handled = true;
         };
+
+        try { AppConfig.Load(); }
+        catch
+        {
+            // Corrupt or missing settings file — start fresh
+            AppConfig.Reset();
+        }
+
+        base.OnStartup(e);
     }
 }

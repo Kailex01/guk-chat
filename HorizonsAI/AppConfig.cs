@@ -25,6 +25,13 @@ public static class AppConfig
     public static void Save()  => SettingsService.Save(Current);
     public static void Apply(AppSettings updated) { Current = updated; Save(); }
 
+    public static void Reset()
+    {
+        EnsureFolders();
+        Current = new AppSettings();
+        try { File.Delete(SettingsFile); } catch { }
+    }
+
     private static void EnsureFolders()
     {
         Directory.CreateDirectory(CharactersFolder);
