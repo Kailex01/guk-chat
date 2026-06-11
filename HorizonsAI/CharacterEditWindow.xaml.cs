@@ -11,6 +11,39 @@ public partial class CharacterEditWindow : Window
     private readonly bool      _isEdit;
     private string?            _pendingPortraitSource;
 
+    // ── Voice row tracking ─────────────────────────────────────────────────────
+
+    private class VoiceRow
+    {
+        public required Grid     Container;
+        public required ComboBox VoiceBox;
+        public required TextBox  WeightBox;
+    }
+
+    private readonly List<VoiceRow> _voiceRows = new();
+
+    private const int MaxVoices = 5;
+
+    private static readonly string[] KokoroVoices =
+    [
+        // American Female
+        "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
+        "af_kore",  "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky",
+        // American Male
+        "am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam",
+        "am_michael", "am_onyx", "am_puck", "am_santa",
+        // British Female
+        "bf_alice", "bf_emma", "bf_isabella", "bf_lily",
+        // British Male
+        "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+        // Japanese Female
+        "jf_alpha", "jf_gongitsune", "jf_nezumi", "jf_tebukuro",
+        // Japanese Male
+        "jm_kumo",
+    ];
+
+    // ── Constructor ────────────────────────────────────────────────────────────
+
     public CharacterEditWindow(Character? existing = null)
     {
         InitializeComponent();
@@ -25,20 +58,132 @@ public partial class CharacterEditWindow : Window
             DeleteBtn.Visibility = Visibility.Visible;
         }
 
-        NameBox.Text       = _character.Name;
-        CategoryBox.Text   = _character.Category;
-        PromptBox.Text     = _character.SystemPrompt;
-        ModelBox.Text      = _character.Model;
+        NameBox.Text         = _character.Name;
+        CategoryBox.Text     = _character.Category;
+        PromptBox.Text       = _character.SystemPrompt;
+        ModelBox.Text        = _character.Model;
         EnabledBox.IsChecked = _character.Enabled;
 
-        if (_character.Portrait != null)
-        {
-            var img = PortraitService.Load(_character.Portrait);
-            if (img != null) PortraitPreview.Source = img;
-        }
+        LoadVoiceProfile();
     }
 
+    // ── Voice profile UI ───────────────────────────────────────────────────────
+
+    private void LoadVoiceProfile()
+    {
+        var p = _character.VoiceProfile;
+
+        foreach (var entry in p.Voices)
+            AddVoiceRowControl(entry.Voice, entry.Weight);
+
+        SpeedBox.Text  = p.Speed.ToString("F1");
+        PitchBox.Text  = p.PitchSemitones.ToString("F1");
+        TempoBox.Text  = p.Tempo.ToString("F1");
+        VolumeBox.Text = p.Volume.ToString("F1");
+
+        UpdateAddButtonState();
+    }
+
+    private void AddVoiceRowControl(string voice = "", float weight = 1.0f)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+
+        var voiceBox = new ComboBox
+        {
+            IsEditable      = true,
+            Text            = voice,
+            Background      = new SolidColorBrush(Color.FromRgb(0x11, 0x1E, 0x2A)),
+            Foreground      = new SolidColorBrush(Color.FromRgb(0xD4, 0xC5, 0xA0)),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x50)),
+            BorderThickness = new Thickness(1),
+            FontSize        = 12,
+            Padding         = new Thickness(6, 4, 6, 4),
+            ToolTip         = "Type any voice name or pick from the list",
+        };
+        foreach (var v in KokoroVoices) voiceBox.Items.Add(v);
+
+        var weightBox = new TextBox
+        {
+            Text            = weight.ToString("F1"),
+            Background      = new SolidColorBrush(Color.FromRgb(0x11, 0x1E, 0x2A)),
+            Foreground      = new SolidColorBrush(Color.FromRgb(0xD4, 0xC5, 0xA0)),
+            BorderBrush     = new SolidColorBrush(Color.FromRgb(0x1E, 0x3A, 0x50)),
+            BorderThickness = new Thickness(1),
+            FontSize        = 12,
+            Padding         = new Thickness(6, 5, 6, 5),
+            TextAlignment   = TextAlignment.Center,
+            ToolTip         = "Blend weight (any positive number — auto-normalised)",
+        };
+
+        var removeBtn = new Button
+        {
+            Content         = "×",
+            Background      = new SolidColorBrush(Color.FromRgb(0x3A, 0x1A, 0x1A)),
+            Foreground      = new SolidColorBrush(Color.FromRgb(0x9A, 0x5A, 0x5A)),
+            BorderThickness = new Thickness(0),
+            FontSize        = 14,
+            Cursor          = Cursors.Hand,
+            ToolTip         = "Remove this voice",
+        };
+
+        var row = new VoiceRow { Container = grid, VoiceBox = voiceBox, WeightBox = weightBox };
+        removeBtn.Click += (_, _) =>
+        {
+            _voiceRows.Remove(row);
+            VoiceEntriesPanel.Children.Remove(grid);
+            UpdateAddButtonState();
+        };
+
+        Grid.SetColumn(voiceBox,   0);
+        Grid.SetColumn(weightBox,  2);
+        Grid.SetColumn(removeBtn,  4);
+        grid.Children.Add(voiceBox);
+        grid.Children.Add(weightBox);
+        grid.Children.Add(removeBtn);
+
+        VoiceEntriesPanel.Children.Add(grid);
+        _voiceRows.Add(row);
+    }
+
+    private void UpdateAddButtonState()
+        => AddVoiceBtn.IsEnabled = _voiceRows.Count < MaxVoices;
+
+    private void AddVoice_Click(object sender, RoutedEventArgs e)
+    {
+        if (_voiceRows.Count >= MaxVoices) return;
+        AddVoiceRowControl();
+        UpdateAddButtonState();
+    }
+
+    private void SaveVoiceProfile()
+    {
+        var p = _character.VoiceProfile;
+        p.Voices.Clear();
+
+        foreach (var row in _voiceRows)
+        {
+            var name = row.VoiceBox.Text.Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            if (!float.TryParse(row.WeightBox.Text, out var w)) w = 1.0f;
+            p.Voices.Add(new VoiceWeight { Voice = name, Weight = Math.Max(0.01f, w) });
+        }
+
+        if (float.TryParse(SpeedBox.Text,  out var speed))  p.Speed          = Math.Clamp(speed,  0.5f, 2.0f);
+        if (float.TryParse(PitchBox.Text,  out var pitch))  p.PitchSemitones = Math.Clamp(pitch, -12f, 12f);
+        if (float.TryParse(TempoBox.Text,  out var tempo))  p.Tempo          = Math.Clamp(tempo,  0.5f, 2.0f);
+        if (float.TryParse(VolumeBox.Text, out var volume)) p.Volume         = Math.Clamp(volume, 0.0f, 2.0f);
+    }
+
+    // ── Title bar ──────────────────────────────────────────────────────────────
+
     private void TitleBar_Drag(object sender, MouseButtonEventArgs e) => DragMove();
+
+    // ── Portrait ───────────────────────────────────────────────────────────────
 
     private void Portrait_Click(object sender, MouseButtonEventArgs e)
     {
@@ -50,7 +195,6 @@ public partial class CharacterEditWindow : Window
         if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
         _pendingPortraitSource = dlg.FileName;
 
-        // Show preview using raw file (not yet saved)
         try
         {
             var bmp = new BitmapImage();
@@ -62,6 +206,8 @@ public partial class CharacterEditWindow : Window
         }
         catch { }
     }
+
+    // ── Save / Delete / Cancel ─────────────────────────────────────────────────
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -79,7 +225,8 @@ public partial class CharacterEditWindow : Window
         _character.Model        = ModelBox.Text.Trim();
         _character.Enabled      = EnabledBox.IsChecked ?? true;
 
-        // Import portrait if one was picked
+        SaveVoiceProfile();
+
         if (_pendingPortraitSource != null)
         {
             var fileName = PortraitService.Import(_pendingPortraitSource, _character.Id);
