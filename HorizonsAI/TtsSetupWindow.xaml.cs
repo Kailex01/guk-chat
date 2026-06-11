@@ -96,7 +96,9 @@ public partial class TtsSetupWindow : Window
         response.EnsureSuccessStatusCode();
 
         var total   = response.Content.Headers.ContentLength ?? -1L;
-        var tmpPath = Path.Combine(Path.GetTempPath(), "horizons_kokoro_download.tar.bz2");
+        var tmpDir  = Path.Combine(AppConfig.DataFolder, "temp");
+        Directory.CreateDirectory(tmpDir);
+        var tmpPath = Path.Combine(tmpDir, "kokoro_download.tar.bz2");
 
         // ── Download ───────────────────────────────────────────────────────────
         await using (var src = await response.Content.ReadAsStreamAsync(ct))
