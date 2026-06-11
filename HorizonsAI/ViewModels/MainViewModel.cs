@@ -670,6 +670,15 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(CanRegenerate));
     }
 
+    // ── Dispose ────────────────────────────────────────────────────────────────
+
+    public void Dispose()
+    {
+        _ttsCts.Cancel();
+        _kokoro.Dispose();
+        _http.Dispose();
+    }
+
     // ── INotifyPropertyChanged ─────────────────────────────────────────────────
 
     public event PropertyChangedEventHandler? PropertyChanged;

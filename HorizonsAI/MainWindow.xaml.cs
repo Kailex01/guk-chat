@@ -29,6 +29,8 @@ public partial class MainWindow : Window
                 catch { /* model present but failed to load — voice stays off */ }
             }
         };
+
+        Closed += (_, _) => _vm.Dispose();
     }
 
     // ── TTS setup ─────────────────────────────────────────────────────────────
