@@ -9,6 +9,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly OpenRouterService _openRouter;
     private readonly Dictionary<string, ObservableCollection<ChatMessage>> _conversations = new();
     private readonly Dictionary<string, string> _memory = new();
+    private Lorebook _lorebook = new();
 
     private const int SummarizeThreshold = 40;
     private const int KeepRecentCount    = 20;
@@ -230,6 +231,7 @@ public class MainViewModel : INotifyPropertyChanged
             ? "No characters yet — click [+] to add one."
             : "";
 
+        LoadLorebook();
         LoadParties();
     }
 
@@ -281,6 +283,8 @@ public class MainViewModel : INotifyPropertyChanged
         if (SelectedParty == item) SelectedParty = null;
         LoadParties();
     }
+
+    public void LoadLorebook() => _lorebook = LorebookService.Load();
 
     public void OnSettingsChanged() { }
 
@@ -372,12 +376,14 @@ public class MainViewModel : INotifyPropertyChanged
         StatusText = $"{charItem.DisplayName} is thinking…";
 
         var memory = GetMemory(key);
+        var lore   = OpenRouterService.MatchLore(Messages, text, _lorebook.Entries);
         var lines  = await _openRouter.ChatAsync(
             charItem.Character,
             Messages.SkipLast(0),
             text,
             _playAsCharacter?.Character,
-            memory);
+            memory,
+            lore);
 
         foreach (var line in lines)
         {
@@ -407,6 +413,7 @@ public class MainViewModel : INotifyPropertyChanged
         StatusText = $"{partyItem.DisplayName} is responding…";
 
         var memory   = GetMemory(key);
+        var lore     = OpenRouterService.MatchLore(Messages, text, _lorebook.Entries);
         var members  = partyItem.Members.Select(m => m.Character);
         var replies  = await _openRouter.ChatPartyAsync(
             partyItem.Party,
@@ -414,7 +421,8 @@ public class MainViewModel : INotifyPropertyChanged
             Messages.SkipLast(0),
             text,
             _playAsCharacter?.Character,
-            memory);
+            memory,
+            lore);
 
         var portraitMap = partyItem.Members.ToDictionary(m => m.Character.Name, m => m.Portrait);
         var fileMap     = partyItem.Members.ToDictionary(m => m.Character.Name, m => m.Character.Portrait);

@@ -111,8 +111,9 @@ public partial class MainWindow : Window
 
     private void Lorebook_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show("Lorebook editor coming soon.", "Horizon's AI",
-            MessageBoxButton.OK, MessageBoxImage.Information);
+        var dlg = new LorebookWindow { Owner = this };
+        dlg.ShowDialog();
+        _vm.LoadLorebook();
     }
 
     // ── Input ──────────────────────────────────────────────────────────────────

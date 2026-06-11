@@ -4,6 +4,7 @@ using HorizonsAI.Models;
 
 namespace HorizonsAI.Services;
 
+
 public class OpenRouterService
 {
     private readonly HttpClient _http;
@@ -13,14 +14,27 @@ public class OpenRouterService
 
     // ── Single character chat ──────────────────────────────────────────────────
 
-    public async Task<List<string>> ChatAsync(Character character, IEnumerable<ChatMessage> history, string userMessage, Character? playAs = null, string? memory = null)
+    // ── Lore matching ──────────────────────────────────────────────────────────
+
+    public static List<LoreEntry> MatchLore(IEnumerable<ChatMessage> recentMessages, string userMessage, IEnumerable<LoreEntry> entries)
+    {
+        var combined = string.Join(" ", recentMessages.TakeLast(10).Select(m => m.Text).Append(userMessage))
+                             .ToLowerInvariant();
+        return entries
+            .Where(e => e.Enabled && e.Keywords.Any(k => combined.Contains(k.Trim().ToLowerInvariant())))
+            .ToList();
+    }
+
+    // ── Single character chat ──────────────────────────────────────────────────
+
+    public async Task<List<string>> ChatAsync(Character character, IEnumerable<ChatMessage> history, string userMessage, Character? playAs = null, string? memory = null, IReadOnlyList<LoreEntry>? lore = null)
     {
         var apiKey = AppConfig.Current.OpenRouterApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
             return ["(No OpenRouter API key set — open Settings to add one.)"];
 
         var model    = string.IsNullOrWhiteSpace(character.Model) ? AppConfig.Current.DefaultModel : character.Model;
-        var messages = BuildSingleMessages(character, history, userMessage, playAs, memory);
+        var messages = BuildSingleMessages(character, history, userMessage, playAs, memory, lore);
         var text     = await SendAsync(model, messages);
 
         if (string.IsNullOrEmpty(text)) return ["…"];
@@ -39,7 +53,8 @@ public class OpenRouterService
         IEnumerable<ChatMessage> history,
         string userMessage,
         Character? playAs = null,
-        string? memory = null)
+        string? memory = null,
+        IReadOnlyList<LoreEntry>? lore = null)
     {
         var apiKey = AppConfig.Current.OpenRouterApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
@@ -47,7 +62,7 @@ public class OpenRouterService
 
         var memberList = members.ToList();
         var model      = AppConfig.Current.DefaultModel;
-        var messages   = BuildPartyMessages(party, memberList, history, userMessage, playAs, memory);
+        var messages   = BuildPartyMessages(party, memberList, history, userMessage, playAs, memory, lore);
         var text       = await SendAsync(model, messages);
 
         if (string.IsNullOrEmpty(text)) return [("", "…")];
@@ -111,9 +126,11 @@ public class OpenRouterService
         return await SendAsync(AppConfig.Current.DefaultModel, apiMessages);
     }
 
-    private static List<object> BuildSingleMessages(Character character, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory)
+    private static List<object> BuildSingleMessages(Character character, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory, IReadOnlyList<LoreEntry>? lore)
     {
         var system = character.SystemPrompt ?? "";
+        if (lore?.Count > 0)
+            system += "\n\n---\nWorld Knowledge:\n" + string.Join("\n\n", lore.Select(e => $"**{e.Title}**\n{e.Content}"));
         if (!string.IsNullOrEmpty(memory))
             system += $"\n\n---\nContext from earlier in this conversation:\n{memory}";
         if (playAs != null)
@@ -140,11 +157,14 @@ public class OpenRouterService
         return msgs;
     }
 
-    private static List<object> BuildPartyMessages(Party party, List<Character> members, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory)
+    private static List<object> BuildPartyMessages(Party party, List<Character> members, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory, IReadOnlyList<LoreEntry>? lore)
     {
         var profiles = string.Join("\n\n", members.Select(m =>
             $"## {m.Name}\n{m.SystemPrompt}"));
 
+        var loreSec   = (lore?.Count > 0)
+            ? "\n\nWorld Knowledge:\n" + string.Join("\n\n", lore.Select(e => $"**{e.Title}**\n{e.Content}"))
+            : "";
         var memorySec = string.IsNullOrEmpty(memory) ? "" :
             $"\n\nContext from earlier in this conversation:\n{memory}";
 
@@ -162,6 +182,7 @@ public class OpenRouterService
             {profiles}
 
             {(string.IsNullOrWhiteSpace(party.Context) ? "" : $"Scene context: {party.Context}")}
+            {loreSec}
             {memorySec}
             {playerSection}
 
