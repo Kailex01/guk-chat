@@ -17,9 +17,9 @@ public sealed class KokoroService : IDisposable
 
     // ── Model readiness ────────────────────────────────────────────────────────
 
+    // model_type.txt is written only after full extraction — guards against partial downloads
     public static bool IsModelReady =>
-        File.Exists(Path.Combine(AppConfig.TtsFolder, "model.onnx")) &&
-        File.Exists(Path.Combine(AppConfig.TtsFolder, "tokens.txt"));
+        File.Exists(Path.Combine(AppConfig.TtsFolder, "model_type.txt"));
 
     // ── Initialization ─────────────────────────────────────────────────────────
 

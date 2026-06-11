@@ -129,11 +129,18 @@ public partial class TtsSetupWindow : Window
         // ── Extract ────────────────────────────────────────────────────────────
         Dispatcher.Invoke(() =>
         {
-            ProgressBar.Value = 100;
-            ProgressText.Text = "Extracting archive…";
+            ProgressBar.IsIndeterminate = true;
+            ProgressText.Text           = "Extracting archive… (this may take a few minutes)";
         });
 
         await Task.Run(() => ExtractTarBz2(tmpPath, destFolder), ct);
+
+        Dispatcher.Invoke(() =>
+        {
+            ProgressBar.IsIndeterminate = false;
+            ProgressBar.Value           = 100;
+            ProgressText.Text           = "Done.";
+        });
 
         // Write model-type marker so KokoroService picks the right SID table
         await File.WriteAllTextAsync(Path.Combine(destFolder, "model_type.txt"), modelType, ct);
