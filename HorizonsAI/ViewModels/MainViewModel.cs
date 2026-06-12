@@ -956,15 +956,16 @@ public class MainViewModel : INotifyPropertyChanged
 
     private string ResolveChecks(string text, string key)
     {
-        // Skill checks — roll vs narrator DC
-        text = Regex.Replace(text, @"\[Check\s+(Str|Dex|Con|Int|Wis|Cha)\]",
+        // Skill checks — roll vs narrator DC; optional bonus e.g. [Check Str +2]
+        text = Regex.Replace(text, @"\[Check\s+(Str|Dex|Con|Int|Wis|Cha)(?:\s+([+-]\d+))?\]",
             m =>
             {
                 var stat        = m.Groups[1].Value;
+                var bonus       = m.Groups[2].Success ? int.Parse(m.Groups[2].Value) : 0;
                 var dc          = _sceneDc.TryGetValue(key, out var d) ? d : 12;
                 var diff        = _sceneDifficulty.TryGetValue(key, out var df) ? df.ToLower() : "normal";
                 var effectiveDc = diff switch { "easy" => dc - 2, "hard" => dc + 2, _ => dc };
-                var mod         = _playAsCharacter?.Character.Stats.GetMod(stat) ?? 0;
+                var mod         = (_playAsCharacter?.Character.Stats.GetMod(stat) ?? 0) + bonus;
                 var roll        = _rng.Next(1, 21);
                 var total       = roll + mod;
                 var modStr      = mod >= 0 ? $"+{mod}" : $"{mod}";
@@ -972,15 +973,19 @@ public class MainViewModel : INotifyPropertyChanged
                 return $"[{stat} Check: {roll}{modStr}={total} vs DC{effectiveDc} — {result}]";
             }, RegexOptions.IgnoreCase);
 
-        // Attack rolls — roll vs target AC; "simple" = 1d4, default = 1d6
-        text = Regex.Replace(text, @"\[Attack\s+(Str|Dex|Con|Int|Wis|Cha)(?:\s+(simple))?\]",
+        // Attack rolls — roll vs target AC; optional bonus and/or "simple" keyword (any order)
+        // e.g. [Attack Str], [Attack Str +2], [Attack Str simple], [Attack Str +2 simple]
+        text = Regex.Replace(text, @"\[Attack\s+(Str|Dex|Con|Int|Wis|Cha)((?:\s+(?:[+-]\d+|simple))*)\]",
             m =>
             {
                 var stat     = m.Groups[1].Value;
-                var isSimple = m.Groups[2].Success;
+                var extras   = m.Groups[2].Value;
+                var isSimple = Regex.IsMatch(extras, @"\bsimple\b", RegexOptions.IgnoreCase);
+                var bonusM   = Regex.Match(extras, @"[+-]\d+");
+                var bonus    = bonusM.Success ? int.Parse(bonusM.Value) : 0;
                 var dieSides = isSimple ? 4 : 6;
                 var (ac, targetName) = ResolveAttackTarget(text, m.Index, key);
-                var mod    = _playAsCharacter?.Character.Stats.GetMod(stat) ?? 0;
+                var mod    = (_playAsCharacter?.Character.Stats.GetMod(stat) ?? 0) + bonus;
                 var roll   = _rng.Next(1, 21);
                 var total  = roll + mod;
                 var modStr = mod >= 0 ? $"+{mod}" : $"{mod}";
