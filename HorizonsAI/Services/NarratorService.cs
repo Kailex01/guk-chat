@@ -68,6 +68,59 @@ public class NarratorService
         }
     }
 
+    public async Task<string> GenerateCharacterPromptAsync(
+        string name, string personality, IEnumerable<ChatMessage> recentHistory)
+    {
+        var settings = AppConfig.Current;
+        var apiKey   = settings.OpenRouterApiKey;
+        if (string.IsNullOrWhiteSpace(apiKey)) return "";
+
+        var model = string.IsNullOrWhiteSpace(settings.NarratorModel)
+            ? settings.DefaultModel
+            : settings.NarratorModel;
+
+        var sceneContext = string.Join("\n", recentHistory
+            .TakeLast(10)
+            .Where(m => !m.IsSummary)
+            .Select(m => m.IsNarratorAction
+                ? $"*{m.Text}*"
+                : string.IsNullOrEmpty(m.SenderName) ? m.Text : $"{m.SenderName}: {m.Text}"));
+
+        var apiMessages = new List<object>
+        {
+            new { role = "system", content =
+                "You create concise roleplay character system prompts. " +
+                "Write as direct instructions to the LLM that will roleplay as this character (e.g. 'You are...'). " +
+                "3-5 sentences covering personality, speech style, motivations, and how they fit the scene. " +
+                "Stay consistent with the scene context and world tone. Output only the system prompt, no preamble." },
+            new { role = "user", content =
+                $"Name: {name}\n" +
+                $"Personality sketch: {personality}\n\n" +
+                $"Recent scene context:\n{sceneContext}\n\n" +
+                "Write a system prompt for this character." },
+        };
+
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post,
+                "https://openrouter.ai/api/v1/chat/completions");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Headers.Add("HTTP-Referer", "https://github.com/Kailex01/horizons-ai-roleplay");
+            request.Headers.Add("X-Title", "Horizon's AI");
+            request.Content = JsonContent.Create(new { model, messages = apiMessages, max_tokens = 300 });
+
+            var resp = await _http.SendAsync(request);
+            if (!resp.IsSuccessStatusCode) return "";
+
+            var result = await resp.Content.ReadFromJsonAsync<OAIResponse>();
+            return result?.Choices?.FirstOrDefault()?.Message?.Content?.Trim() ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
     private static NarratorResult? ParseResult(string json)
     {
         try

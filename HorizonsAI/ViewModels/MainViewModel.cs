@@ -565,11 +565,14 @@ public class MainViewModel : INotifyPropertyChanged
 
                 _ = Task.Run(async () =>
                 {
+                    var narratorFallback = AppConfig.Current.NarratorVoiceProfile;
                     foreach (var (name, msg) in replies)
                     {
                         if (ct.IsCancellationRequested) break;
-                        if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
-                        await _kokoro.SpeakAsync(msg, profile, AppConfig.Current.NarratorVoiceProfile, ct).ConfigureAwait(false);
+                        VoiceProfile? profile = profileMap.TryGetValue(name, out var p) && p.IsEnabled ? p : null;
+                        profile ??= narratorFallback.IsEnabled ? narratorFallback : null;
+                        if (profile == null) continue;
+                        await _kokoro.SpeakAsync(msg, profile, narratorFallback, ct).ConfigureAwait(false);
                     }
                 }, ct).ContinueWith(t =>
                 {
@@ -718,11 +721,14 @@ public class MainViewModel : INotifyPropertyChanged
 
             _ = Task.Run(async () =>
             {
+                var narratorFallback = AppConfig.Current.NarratorVoiceProfile;
                 foreach (var (name, msg) in replies)
                 {
                     if (ct.IsCancellationRequested) break;
-                    if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
-                    await _kokoro.SpeakAsync(msg, profile, AppConfig.Current.NarratorVoiceProfile, ct).ConfigureAwait(false);
+                    VoiceProfile? profile = profileMap.TryGetValue(name, out var p) && p.IsEnabled ? p : null;
+                    profile ??= narratorFallback.IsEnabled ? narratorFallback : null;
+                    if (profile == null) continue;
+                    await _kokoro.SpeakAsync(msg, profile, narratorFallback, ct).ConfigureAwait(false);
                 }
             }, ct).ContinueWith(t =>
             {
@@ -746,14 +752,47 @@ public class MainViewModel : INotifyPropertyChanged
 
     private async Task FireNarratorAsync(string key)
     {
-        // Capture synchronously before the network await so a mid-flight conversation
-        // switch doesn't corrupt the wrong roster.
+        // Capture synchronously before any awaits — prevents mid-flight conversation-switch races
         if (!_conversations.TryGetValue(key, out var convoVms)) return;
-        var npcNames      = GetActiveNpcNames(key);
-        var historySnap   = convoVms.Select(vm => vm.Message).ToList();
+        var npcNames    = GetActiveNpcNames(key);
+        var historySnap = convoVms.Select(vm => vm.Message).ToList();
+        var ct          = _ttsCts.Token;
 
         var result = await _narrator.EvaluateAsync(historySnap, npcNames);
         if (result == null) return;
+
+        // For each newly introduced NPC, generate a full character system prompt and save
+        bool anyNewCharacters = false;
+        if (result.Add.Count > 0)
+        {
+            var existingIds = CharacterService.LoadAll().Select(c => c.Id).ToHashSet();
+            foreach (var sceneNpc in result.Add)
+            {
+                var id = Character.MakeId(sceneNpc.Name);
+                if (existingIds.Contains(id))
+                {
+                    sceneNpc.CharacterId = id;
+                    continue;
+                }
+
+                var prompt = await _narrator.GenerateCharacterPromptAsync(
+                    sceneNpc.Name, sceneNpc.Personality, historySnap);
+                if (!string.IsNullOrEmpty(prompt))
+                {
+                    CharacterService.Save(new Character
+                    {
+                        Id           = id,
+                        Name         = sceneNpc.Name,
+                        Category     = "scene_npcs",
+                        Enabled      = true,
+                        SystemPrompt = prompt,
+                    });
+                    sceneNpc.Personality  = prompt;
+                    sceneNpc.CharacterId  = id;
+                    anyNewCharacters      = true;
+                }
+            }
+        }
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
@@ -781,8 +820,18 @@ public class MainViewModel : INotifyPropertyChanged
                 _sceneNpcs[key].RemoveAll(n =>
                     string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase));
 
+            if (anyNewCharacters) LoadCharacters();
+
             AutoSave(key);
         });
+
+        // Narrator TTS — queued in KokoroService semaphore, plays after NPC voices
+        if (result.Narration != null && IsVoiceEnabled)
+        {
+            var narratorProfile = AppConfig.Current.NarratorVoiceProfile;
+            if (narratorProfile.IsEnabled)
+                _ = _kokoro.SpeakAsync(result.Narration, narratorProfile, narratorProfile, ct);
+        }
     }
 
     private List<string> GetActiveNpcNames(string key)
