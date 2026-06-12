@@ -13,7 +13,8 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly Dictionary<string, string>          _memory    = new();
     private readonly Dictionary<string, List<SceneNpc>>  _sceneNpcs = new();
     private Lorebook _lorebook = new();
-    private CancellationTokenSource _ttsCts = new();
+    private CancellationTokenSource _ttsCts          = new();
+    private Task                     _npcVoiceTask    = Task.CompletedTask;
 
     private const int SummarizeThreshold = 40;
     private const int KeepRecentCount    = 20;
@@ -563,7 +564,7 @@ public class MainViewModel : INotifyPropertyChanged
                 var synthMsgs = Messages.TakeLast(totalAdded).Where(m => !m.IsNarratorAction).ToList();
                 foreach (var m in synthMsgs) m.IsSynthesizing = true;
 
-                _ = Task.Run(async () =>
+                var voiceTask = Task.Run(async () =>
                 {
                     var narratorFallback = AppConfig.Current.NarratorVoiceProfile;
                     foreach (var (name, msg) in replies)
@@ -574,7 +575,9 @@ public class MainViewModel : INotifyPropertyChanged
                         if (profile == null) continue;
                         await _kokoro.SpeakAsync(msg, profile, narratorFallback, ct).ConfigureAwait(false);
                     }
-                }, ct).ContinueWith(t =>
+                }, ct);
+                _npcVoiceTask = voiceTask;
+                _ = voiceTask.ContinueWith(t =>
                 {
                     var ex = t.Exception?.GetBaseException();
                     Application.Current.Dispatcher.InvokeAsync(() =>
@@ -719,7 +722,7 @@ public class MainViewModel : INotifyPropertyChanged
             var synthMsgs = Messages.TakeLast(totalAdded).Where(m => !m.IsNarratorAction).ToList();
             foreach (var m in synthMsgs) m.IsSynthesizing = true;
 
-            _ = Task.Run(async () =>
+            var partyVoiceTask = Task.Run(async () =>
             {
                 var narratorFallback = AppConfig.Current.NarratorVoiceProfile;
                 foreach (var (name, msg) in replies)
@@ -730,7 +733,9 @@ public class MainViewModel : INotifyPropertyChanged
                     if (profile == null) continue;
                     await _kokoro.SpeakAsync(msg, profile, narratorFallback, ct).ConfigureAwait(false);
                 }
-            }, ct).ContinueWith(t =>
+            }, ct);
+            _npcVoiceTask = partyVoiceTask;
+            _ = partyVoiceTask.ContinueWith(t =>
             {
                 var ex = t.Exception?.GetBaseException();
                 Application.Current.Dispatcher.InvokeAsync(() =>
@@ -754,9 +759,10 @@ public class MainViewModel : INotifyPropertyChanged
     {
         // Capture synchronously before any awaits — prevents mid-flight conversation-switch races
         if (!_conversations.TryGetValue(key, out var convoVms)) return;
-        var npcNames    = GetActiveNpcNames(key);
-        var historySnap = convoVms.Select(vm => vm.Message).ToList();
-        var ct          = _ttsCts.Token;
+        var npcNames      = GetActiveNpcNames(key);
+        var historySnap   = convoVms.Select(vm => vm.Message).ToList();
+        var ct            = _ttsCts.Token;
+        var npcVoiceSnap  = _npcVoiceTask;
 
         var result = await _narrator.EvaluateAsync(historySnap, npcNames);
         if (result == null) return;
@@ -825,12 +831,15 @@ public class MainViewModel : INotifyPropertyChanged
             AutoSave(key);
         });
 
-        // Narrator TTS — queued in KokoroService semaphore, plays after NPC voices
+        // Narrator TTS — wait for all NPC voices to finish first, then speak
         if (result.Narration != null && IsVoiceEnabled)
         {
             var narratorProfile = AppConfig.Current.NarratorVoiceProfile;
             if (narratorProfile.IsEnabled)
+            {
+                try { await npcVoiceSnap.ConfigureAwait(false); } catch { }
                 _ = _kokoro.SpeakAsync(result.Narration, narratorProfile, narratorProfile, ct);
+            }
         }
     }
 
