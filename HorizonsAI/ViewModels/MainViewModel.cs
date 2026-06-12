@@ -956,22 +956,74 @@ public class MainViewModel : INotifyPropertyChanged
 
     private string ResolveChecks(string text, string key)
     {
-        return Regex.Replace(text, @"\[Check\s+(Str|Dex|Con|Int|Wis|Cha)\]",
+        // Skill checks — roll vs narrator DC
+        text = Regex.Replace(text, @"\[Check\s+(Str|Dex|Con|Int|Wis|Cha)\]",
             m =>
             {
                 var stat        = m.Groups[1].Value;
                 var dc          = _sceneDc.TryGetValue(key, out var d) ? d : 12;
                 var diff        = _sceneDifficulty.TryGetValue(key, out var df) ? df.ToLower() : "normal";
                 var effectiveDc = diff switch { "easy" => dc - 2, "hard" => dc + 2, _ => dc };
+                var mod         = _playAsCharacter?.Character.Stats.GetMod(stat) ?? 0;
+                var roll        = _rng.Next(1, 21);
+                var total       = roll + mod;
+                var modStr      = mod >= 0 ? $"+{mod}" : $"{mod}";
+                var result      = total >= effectiveDc ? "SUCCESS" : "FAIL";
+                return $"[{stat} Check: {roll}{modStr}={total} vs DC{effectiveDc} — {result}]";
+            }, RegexOptions.IgnoreCase);
 
+        // Attack rolls — roll vs target AC; "simple" = 1d4, default = 1d6
+        text = Regex.Replace(text, @"\[Attack\s+(Str|Dex|Con|Int|Wis|Cha)(?:\s+(simple))?\]",
+            m =>
+            {
+                var stat     = m.Groups[1].Value;
+                var isSimple = m.Groups[2].Success;
+                var dieSides = isSimple ? 4 : 6;
+                var (ac, targetName) = ResolveAttackTarget(text, m.Index, key);
                 var mod    = _playAsCharacter?.Character.Stats.GetMod(stat) ?? 0;
                 var roll   = _rng.Next(1, 21);
                 var total  = roll + mod;
-                var result = total >= effectiveDc ? "SUCCESS" : "FAIL";
                 var modStr = mod >= 0 ? $"+{mod}" : $"{mod}";
-                return $"[{stat} Check: {roll}{modStr}={total} vs DC{effectiveDc} — {result}]";
-            },
-            RegexOptions.IgnoreCase);
+                var label  = targetName != null ? $" ({targetName})" : "";
+                if (total >= ac)
+                {
+                    var dmg = _rng.Next(1, dieSides + 1);
+                    return $"[{stat} Attack: {roll}{modStr}={total} vs AC{ac}{label} — HIT! 1d{dieSides}={dmg} dmg]";
+                }
+                return $"[{stat} Attack: {roll}{modStr}={total} vs AC{ac}{label} — MISS]";
+            }, RegexOptions.IgnoreCase);
+
+        return text;
+    }
+
+    private (int Ac, string? Name) ResolveAttackTarget(string text, int tokenIndex, string key)
+    {
+        if (_sceneNpcs.TryGetValue(key, out var npcs) && npcs.Count > 0)
+        {
+            // Search ±100 chars around the token for a named NPC
+            int start  = Math.Max(0, tokenIndex - 100);
+            int len    = Math.Min(text.Length - start, 200);
+            var window = text.Substring(start, len);
+            foreach (var npc in npcs)
+            {
+                if (window.Contains(npc.Name, StringComparison.OrdinalIgnoreCase))
+                    return (NpcAc(npc), npc.Name);
+            }
+            return (NpcAc(npcs[0]), npcs[0].Name);
+        }
+        // No scene NPCs — fall back to narrator DC
+        var dc = _sceneDc.TryGetValue(key, out var d) ? d : 12;
+        return (dc, null);
+    }
+
+    private int NpcAc(SceneNpc npc)
+    {
+        if (npc.CharacterId != null)
+        {
+            var c = _allCharactersFlat.FirstOrDefault(x => x.Character.Id == npc.CharacterId);
+            if (c != null) return c.Character.Stats.Ac;
+        }
+        return 10;
     }
 
     // ── Narrator / GM ──────────────────────────────────────────────────────────
