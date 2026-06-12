@@ -109,33 +109,38 @@
                 <TextBlock Text="YOUR NAME (how you appear to characters)" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="SpeakerNameBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
 
-                <TextBlock Text="PIPER EXE PATH" Style="{StaticResource FieldLabel}"/>
-                <Grid Margin="0,0,0,14">
+                <TextBlock Text="NARRATOR VOICE  (used for *action text* — leave voice blank to use character voice)"
+                           Style="{StaticResource FieldLabel}" Margin="0,4,0,4"/>
+                <!-- Voice dropdown -->
+                <ComboBox x:Name="NarratorVoiceBox"
+                          IsEditable="True" IsTextSearchEnabled="True"
+                          Background="#111E2A" Foreground="#D4C5A0"
+                          BorderBrush="#1E3A50" BorderThickness="1"
+                          FontSize="12" Padding="6,5"
+                          ToolTip="Pick or type a voice name"
+                          Margin="0,0,0,6"/>
+                <!-- Speed / Pitch / Volume -->
+                <Grid Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="8"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="PiperExeBox" Style="{StaticResource FieldBox}"/>
-                    <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
-                            Click="BrowsePiperExe_Click"/>
-                </Grid>
-
-                <TextBlock Text="PIPER MODELS FOLDER" Style="{StaticResource FieldLabel}"/>
-                <Grid Margin="0,0,0,14">
-                    <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="8"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="PiperModelsBox" Style="{StaticResource FieldBox}"/>
-                    <Button Grid.Column="2" Content="Browse…" Style="{StaticResource BrowseBtn}"
-                            Click="BrowsePiperModels_Click"/>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SPEED" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="NarratorSpeedBox" Style="{StaticResource FieldBox}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="PITCH (semitones)" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="NarratorPitchBox" Style="{StaticResource FieldBox}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="VOLUME" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="NarratorVolumeBox" Style="{StaticResource FieldBox}"/>
+                    </StackPanel>
                 </Grid>
-
-                <TextBlock Text="NARRATOR VOICE MODEL (for *emotes*, leave blank to use character voice)"
-                           Style="{StaticResource FieldLabel}"/>
-                <TextBox x:Name="NarratorModelBox" Style="{StaticResource FieldBox}" Margin="0,0,0,4"/>
             </StackPanel>
         </ScrollViewer>
 

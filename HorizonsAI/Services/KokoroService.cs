@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 using HorizonsAI;
 using HorizonsAI.Models;
 using NAudio.Wave;
@@ -70,25 +71,65 @@ public sealed class KokoroService : IDisposable
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
-    public async Task SpeakAsync(string text, VoiceProfile profile, CancellationToken ct = default)
+    public async Task SpeakAsync(string text, VoiceProfile charProfile,
+                                  VoiceProfile? narratorProfile = null, CancellationToken ct = default)
     {
-        if (_tts == null || string.IsNullOrWhiteSpace(text) || !profile.IsEnabled) return;
+        if (_tts == null || string.IsNullOrWhiteSpace(text) || !charProfile.IsEnabled) return;
 
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var (samples, sampleRate) = await Task.Run(() => Synthesize(text, profile), ct).ConfigureAwait(false);
-            if (ct.IsCancellationRequested || samples.Length == 0) return;
+            foreach (var (segText, isAction) in ParseSegments(text))
+            {
+                if (ct.IsCancellationRequested || string.IsNullOrWhiteSpace(segText)) break;
 
-            samples = ApplyPitch(samples, profile.PitchSemitones, sampleRate);
-            ApplyVolume(samples, profile.Volume);
+                // Action segments use narrator; if no narrator configured, skip them
+                var profile = isAction
+                    ? (narratorProfile?.IsEnabled == true ? narratorProfile : null)
+                    : charProfile;
+                if (profile == null) continue;
 
-            await PlayAsync(samples, sampleRate, ct).ConfigureAwait(false);
+                var (samples, sampleRate) = await Task.Run(() => Synthesize(segText, profile), ct).ConfigureAwait(false);
+                if (ct.IsCancellationRequested || samples.Length == 0) continue;
+
+                samples = ApplyPitch(samples, profile.PitchSemitones, sampleRate);
+                ApplyVolume(samples, profile.Volume);
+                await PlayAsync(samples, sampleRate, ct).ConfigureAwait(false);
+            }
         }
         finally
         {
             _lock.Release();
         }
+    }
+
+    // Splits text into (text, isAction) segments on *emote* markers.
+    // "Hello *waves hand* there" → [("Hello", false), ("waves hand", true), ("there", false)]
+    private static IEnumerable<(string Text, bool IsAction)> ParseSegments(string text)
+    {
+        var segments = new List<(string, bool)>();
+        var regex    = new Regex(@"\*([^*]+)\*");
+        int pos      = 0;
+
+        foreach (Match match in regex.Matches(text))
+        {
+            if (match.Index > pos)
+            {
+                var before = text[pos..match.Index].Trim();
+                if (!string.IsNullOrEmpty(before)) segments.Add((before, false));
+            }
+            var action = match.Groups[1].Value.Trim();
+            if (!string.IsNullOrEmpty(action)) segments.Add((action, true));
+            pos = match.Index + match.Length;
+        }
+
+        if (pos < text.Length)
+        {
+            var tail = text[pos..].Trim();
+            if (!string.IsNullOrEmpty(tail)) segments.Add((tail, false));
+        }
+
+        return segments.Count > 0 ? segments : [(text.Trim(), false)];
     }
 
     // ── Synthesis ──────────────────────────────────────────────────────────────
@@ -226,6 +267,70 @@ public sealed class KokoroService : IDisposable
 
         waveOut.Play();
         await tcs.Task.ConfigureAwait(false);
+    }
+
+    // ── Voice name lists (for UI dropdowns) ───────────────────────────────────
+
+    public static string[] GetInstalledVoiceNames()
+    {
+        var markerFile = Path.Combine(AppConfig.TtsFolder, "model_type.txt");
+        var modelType  = File.Exists(markerFile) ? File.ReadAllText(markerFile).Trim() : "";
+        return modelType switch
+        {
+            "multi-v1_1" => VoiceNamesV11,
+            "multi-v1_0" => VoiceNamesV10,
+            "en-v0_19"   => VoiceNamesEn,
+            _            => VoiceNamesV10,
+        };
+    }
+
+    public static readonly string[] VoiceNamesEn =
+    [
+        "af", "af_bella", "af_nicole", "af_sarah", "af_sky",
+        "am_adam", "am_michael",
+        "bf_emma", "bf_isabella",
+        "bm_george", "bm_lewis",
+    ];
+
+    public static readonly string[] VoiceNamesV10 =
+    [
+        // American Female
+        "af_alloy", "af_aoede", "af_bella", "af_heart", "af_jessica",
+        "af_kore",  "af_nicole", "af_nova", "af_river", "af_sarah", "af_sky",
+        // American Male
+        "am_adam", "am_echo", "am_eric", "am_fenrir", "am_liam",
+        "am_michael", "am_onyx", "am_puck", "am_santa",
+        // British Female
+        "bf_alice", "bf_emma", "bf_isabella", "bf_lily",
+        // British Male
+        "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+        // Spanish
+        "ef_dora", "em_alex",
+        // French
+        "ff_siwis",
+        // Hindi
+        "hf_alpha", "hf_beta", "hm_omega", "hm_psi",
+        // Italian
+        "if_sara", "im_nicola",
+        // Japanese Female
+        "jf_alpha", "jf_gongitsune", "jf_nezumi", "jf_tebukuro",
+        // Japanese Male
+        "jm_kumo",
+        // Portuguese
+        "pf_dora", "pm_alex", "pm_santa",
+        // Chinese Female
+        "zf_xiaobei", "zf_xiaoni", "zf_xiaoxiao", "zf_xiaoyi",
+        // Chinese Male
+        "zm_yunjian", "zm_yunxi", "zm_yunxia", "zm_yunyang",
+    ];
+
+    public static readonly string[] VoiceNamesV11 = BuildVoiceNamesV11();
+    private static string[] BuildVoiceNamesV11()
+    {
+        var list = new List<string> { "af_maple", "af_sol", "bf_vale" };
+        for (int i = 1;  i <= 55; i++) list.Add($"zf_{i:000}");
+        for (int i = 9;  i <= 53; i++) list.Add($"zm_{i:000}");
+        return list.ToArray();
     }
 
     // ── Voice SID tables ───────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 using System.Windows.Input;
 using HorizonsAI.Models;
-using Microsoft.Win32;
+using HorizonsAI.Services;
 
 namespace HorizonsAI;
 
@@ -10,44 +10,48 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         var s = AppConfig.Current;
-        ApiKeyBox.Text        = s.OpenRouterApiKey;
-        DefaultModelBox.Text  = s.DefaultModel;
-        SpeakerNameBox.Text   = s.SpeakerName;
-        PiperExeBox.Text      = s.PiperExePath;
-        PiperModelsBox.Text   = s.PiperModelsPath;
-        NarratorModelBox.Text = s.NarratorVoiceModel;
+        ApiKeyBox.Text       = s.OpenRouterApiKey;
+        DefaultModelBox.Text = s.DefaultModel;
+        SpeakerNameBox.Text  = s.SpeakerName;
+
+        foreach (var v in KokoroService.GetInstalledVoiceNames())
+            NarratorVoiceBox.Items.Add(v);
+
+        var np = s.NarratorVoiceProfile;
+        NarratorVoiceBox.Text  = np.Voices.FirstOrDefault()?.Voice ?? "";
+        NarratorSpeedBox.Text  = np.Speed.ToString("F1");
+        NarratorPitchBox.Text  = np.PitchSemitones.ToString("F1");
+        NarratorVolumeBox.Text = np.Volume.ToString("F1");
     }
 
     private void TitleBar_Drag(object sender, MouseButtonEventArgs e) => DragMove();
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        var voiceName = NarratorVoiceBox.Text.Trim();
+        float.TryParse(NarratorSpeedBox.Text,  out float speed);  if (speed  <= 0) speed  = 1f;
+        float.TryParse(NarratorPitchBox.Text,  out float pitch);
+        float.TryParse(NarratorVolumeBox.Text, out float volume); if (volume <= 0) volume = 1f;
+
+        var narratorProfile = new VoiceProfile
+        {
+            Speed          = speed,
+            PitchSemitones = pitch,
+            Volume         = volume,
+        };
+        if (!string.IsNullOrWhiteSpace(voiceName))
+            narratorProfile.Voices.Add(new VoiceWeight { Voice = voiceName, Weight = 1f });
+
         AppConfig.Apply(new AppSettings
         {
-            OpenRouterApiKey   = ApiKeyBox.Text.Trim(),
-            DefaultModel       = DefaultModelBox.Text.Trim(),
-            SpeakerName        = SpeakerNameBox.Text.Trim(),
-            PiperExePath       = PiperExeBox.Text.Trim(),
-            PiperModelsPath    = PiperModelsBox.Text.Trim(),
-            NarratorVoiceModel = NarratorModelBox.Text.Trim(),
+            OpenRouterApiKey     = ApiKeyBox.Text.Trim(),
+            DefaultModel         = DefaultModelBox.Text.Trim(),
+            SpeakerName          = SpeakerNameBox.Text.Trim(),
+            NarratorVoiceProfile = narratorProfile,
         });
         DialogResult = true;
         Close();
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) { DialogResult = false; Close(); }
-
-    private void BrowsePiperExe_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new OpenFileDialog { Title = "Select piper.exe", Filter = "piper.exe|piper.exe|Executable|*.exe" };
-        if (dlg.ShowDialog() == true)
-            PiperExeBox.Text = dlg.FileName;
-    }
-
-    private void BrowsePiperModels_Click(object sender, RoutedEventArgs e)
-    {
-        var dlg = new OpenFolderDialog { Title = "Select Piper models folder" };
-        if (dlg.ShowDialog() == true)
-            PiperModelsBox.Text = dlg.FolderName;
-    }
 }

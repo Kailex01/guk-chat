@@ -540,7 +540,8 @@ public class MainViewModel : INotifyPropertyChanged
                 _ttsCts.Cancel();
                 _ttsCts = new CancellationTokenSource();
                 var ct = _ttsCts.Token;
-                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile, ct)
+                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile,
+                        AppConfig.Current.NarratorVoiceProfile, ct)
                     .ContinueWith(t =>
                     {
                         var ex = t.Exception?.GetBaseException();
@@ -614,7 +615,7 @@ public class MainViewModel : INotifyPropertyChanged
                 {
                     if (ct.IsCancellationRequested) break;
                     if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
-                    await _kokoro.SpeakAsync(msg, profile, ct).ConfigureAwait(false);
+                    await _kokoro.SpeakAsync(msg, profile, AppConfig.Current.NarratorVoiceProfile, ct).ConfigureAwait(false);
                 }
             }, ct).ContinueWith(t =>
             {
