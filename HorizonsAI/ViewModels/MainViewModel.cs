@@ -8,8 +8,10 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly HttpClient        _http   = new() { Timeout = TimeSpan.FromSeconds(60) };
     private readonly OpenRouterService _openRouter;
     private readonly KokoroService     _kokoro = new();
+    private readonly NarratorService   _narrator;
     private readonly Dictionary<string, ObservableCollection<ChatMessageVm>> _conversations = new();
-    private readonly Dictionary<string, string> _memory = new();
+    private readonly Dictionary<string, string>          _memory    = new();
+    private readonly Dictionary<string, List<SceneNpc>>  _sceneNpcs = new();
     private Lorebook _lorebook = new();
     private CancellationTokenSource _ttsCts = new();
 
@@ -237,6 +239,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HorizonsAI/1.0");
         _openRouter  = new OpenRouterService(_http);
+        _narrator    = new NarratorService(_http);
         _authorsNote = AppConfig.Current.AuthorsNote;
 
         SendCommand = new RelayCommand(
@@ -323,6 +326,7 @@ public class MainViewModel : INotifyPropertyChanged
         ChatLogService.Delete(key);
         _conversations.Remove(key);
         _memory.Remove(key);
+        _sceneNpcs.Remove(key);
         if (SelectedCharacter == item) SelectedCharacter = null;
         LoadCharacters();
     }
@@ -361,6 +365,7 @@ public class MainViewModel : INotifyPropertyChanged
         ChatLogService.Delete(key);
         _conversations.Remove(key);
         _memory.Remove(key);
+        _sceneNpcs.Remove(key);
         if (SelectedParty == item) SelectedParty = null;
         LoadParties();
     }
@@ -393,21 +398,23 @@ public class MainViewModel : INotifyPropertyChanged
     private void LoadConversationFromDisk(string key)
     {
         var state = ChatLogService.Load(key);
-        _memory[key] = state.Memory ?? "";
+        _memory[key]    = state.Memory ?? "";
+        _sceneNpcs[key] = new List<SceneNpc>(state.SceneNpcs);
 
         var loaded = new ObservableCollection<ChatMessageVm>();
         foreach (var dto in state.Messages)
         {
             loaded.Add(new ChatMessageVm(new ChatMessage
             {
-                Text         = dto.Text,
-                IsPlayer     = dto.IsPlayer,
-                IsSummary    = dto.IsSummary,
-                SenderName   = dto.SenderName,
-                PortraitFile = dto.PortraitFile,
-                Portrait     = !string.IsNullOrEmpty(dto.PortraitFile)
-                               ? PortraitService.Load(dto.PortraitFile) : null,
-                Timestamp    = dto.Timestamp,
+                Text             = dto.Text,
+                IsPlayer         = dto.IsPlayer,
+                IsSummary        = dto.IsSummary,
+                IsNarratorAction = dto.IsNarratorAction,
+                SenderName       = dto.SenderName,
+                PortraitFile     = dto.PortraitFile,
+                Portrait         = !string.IsNullOrEmpty(dto.PortraitFile)
+                                   ? PortraitService.Load(dto.PortraitFile) : null,
+                Timestamp        = dto.Timestamp,
             }));
         }
         _conversations[key] = loaded;
@@ -497,81 +504,172 @@ public class MainViewModel : INotifyPropertyChanged
     {
         StatusText = $"{charItem.DisplayName} is thinking…";
 
-        var memory = GetMemory(key);
-        var lore   = OpenRouterService.MatchLore(Messages.Select(vm => vm.Message), text, _lorebook.Entries);
-        var lines  = await _openRouter.ChatAsync(
-            charItem.Character,
-            Messages.SkipLast(1).Select(vm => vm.Message),
-            text,
-            _playAsCharacter?.Character,
-            memory,
-            lore,
-            _authorsNote);
+        var sceneNpcs = _sceneNpcs.TryGetValue(key, out var sn) ? sn : new List<SceneNpc>();
 
-        var rawText  = string.Join(" ", lines);
-        var segments = KokoroService.ParseSegments(rawText).ToList();
-        foreach (var (segText, isAction) in segments)
+        if (sceneNpcs.Count > 0)
         {
-            Messages.Add(new ChatMessageVm(new ChatMessage
-            {
-                Text             = segText,
-                IsPlayer         = false,
-                IsNarratorAction = isAction,
-                SenderName       = isAction ? "" : charItem.DisplayName,
-                Portrait         = isAction ? null : charItem.Portrait,
-                PortraitFile     = isAction ? null : charItem.Character.Portrait,
-                Timestamp        = DateTime.Now,
-            }));
-        }
-        ScrollToBottom?.Invoke();
-        StatusText = "";
-        if (_openRouter.LastUsage is { } u)
-            TokenUsageText = $"prompt {u.PromptTokens:N0}  ·  reply {u.CompletionTokens:N0}  ·  total {u.TotalTokens:N0} tokens";
-        OnPropertyChanged(nameof(CanRegenerate));
+            // Scene has grown — promote to multi-NPC party-style call
+            var members = new List<(string Name, string SystemPrompt)>
+                { (charItem.DisplayName, charItem.Character.SystemPrompt ?? "") };
+            members.AddRange(sceneNpcs.Select(n => (n.Name, n.Personality)));
 
-        if (IsVoiceEnabled)
-        {
-            if (!_kokoro.IsInitialized)
-                StatusText = "Voice: model not loaded — restart the app or re-download the model.";
-            else if (!charItem.Character.VoiceProfile.IsEnabled)
-                StatusText = "Voice: no voice set for this character — edit the character and add a voice.";
-            else
-            {
-                var synthMsgs = Messages.TakeLast(segments.Count).Where(m => !m.IsNarratorAction).ToList();
-                foreach (var m in synthMsgs) m.IsSynthesizing = true;
+            var portraitMap = new Dictionary<string, BitmapImage?> { [charItem.DisplayName] = charItem.Portrait };
+            var fileMap     = new Dictionary<string, string?>       { [charItem.DisplayName] = charItem.Character.Portrait };
+            var profileMap  = new Dictionary<string, VoiceProfile>  { [charItem.DisplayName] = charItem.Character.VoiceProfile };
 
+            var memory  = GetMemory(key);
+            var lore    = OpenRouterService.MatchLore(Messages.Select(vm => vm.Message), text, _lorebook.Entries);
+            var replies = await _openRouter.ChatPartyAsync(
+                "",
+                members,
+                Messages.SkipLast(1).Select(vm => vm.Message),
+                text,
+                _playAsCharacter?.Character,
+                memory,
+                lore,
+                _authorsNote);
+
+            int totalAdded = 0;
+            foreach (var (name, msg) in replies)
+            {
+                portraitMap.TryGetValue(name, out var portrait);
+                fileMap.TryGetValue(name, out var portraitFile);
+                foreach (var (segText, isAction) in KokoroService.ParseSegments(msg))
+                {
+                    Messages.Add(new ChatMessageVm(new ChatMessage
+                    {
+                        Text             = segText,
+                        IsPlayer         = false,
+                        IsNarratorAction = isAction,
+                        SenderName       = isAction ? "" : name,
+                        Portrait         = isAction ? null : portrait,
+                        PortraitFile     = isAction ? null : portraitFile,
+                        Timestamp        = DateTime.Now,
+                    }));
+                    totalAdded++;
+                }
+            }
+            ScrollToBottom?.Invoke();
+            StatusText = "";
+            if (_openRouter.LastUsage is { } up)
+                TokenUsageText = $"prompt {up.PromptTokens:N0}  ·  reply {up.CompletionTokens:N0}  ·  total {up.TotalTokens:N0} tokens";
+            OnPropertyChanged(nameof(CanRegenerate));
+
+            if (IsVoiceEnabled && replies.Count > 0)
+            {
                 _ttsCts.Cancel();
                 _ttsCts = new CancellationTokenSource();
                 var ct = _ttsCts.Token;
-                _ = _kokoro.SpeakAsync(rawText, charItem.Character.VoiceProfile,
-                        AppConfig.Current.NarratorVoiceProfile, ct)
-                    .ContinueWith(t =>
+                var synthMsgs = Messages.TakeLast(totalAdded).Where(m => !m.IsNarratorAction).ToList();
+                foreach (var m in synthMsgs) m.IsSynthesizing = true;
+
+                _ = Task.Run(async () =>
+                {
+                    foreach (var (name, msg) in replies)
                     {
-                        var ex = t.Exception?.GetBaseException();
-                        Application.Current.Dispatcher.InvokeAsync(() =>
+                        if (ct.IsCancellationRequested) break;
+                        if (!profileMap.TryGetValue(name, out var profile) || profile?.IsEnabled != true) continue;
+                        await _kokoro.SpeakAsync(msg, profile, AppConfig.Current.NarratorVoiceProfile, ct).ConfigureAwait(false);
+                    }
+                }, ct).ContinueWith(t =>
+                {
+                    var ex = t.Exception?.GetBaseException();
+                    Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        foreach (var m in synthMsgs) m.IsSynthesizing = false;
+                        if (t.IsFaulted)
+                            StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}";
+                    });
+                }, TaskScheduler.Default);
+            }
+        }
+        else
+        {
+            // Solo NPC path
+            var memory = GetMemory(key);
+            var lore   = OpenRouterService.MatchLore(Messages.Select(vm => vm.Message), text, _lorebook.Entries);
+            var lines  = await _openRouter.ChatAsync(
+                charItem.Character,
+                Messages.SkipLast(1).Select(vm => vm.Message),
+                text,
+                _playAsCharacter?.Character,
+                memory,
+                lore,
+                _authorsNote);
+
+            var rawText  = string.Join(" ", lines);
+            var segments = KokoroService.ParseSegments(rawText).ToList();
+            foreach (var (segText, isAction) in segments)
+            {
+                Messages.Add(new ChatMessageVm(new ChatMessage
+                {
+                    Text             = segText,
+                    IsPlayer         = false,
+                    IsNarratorAction = isAction,
+                    SenderName       = isAction ? "" : charItem.DisplayName,
+                    Portrait         = isAction ? null : charItem.Portrait,
+                    PortraitFile     = isAction ? null : charItem.Character.Portrait,
+                    Timestamp        = DateTime.Now,
+                }));
+            }
+            ScrollToBottom?.Invoke();
+            StatusText = "";
+            if (_openRouter.LastUsage is { } u)
+                TokenUsageText = $"prompt {u.PromptTokens:N0}  ·  reply {u.CompletionTokens:N0}  ·  total {u.TotalTokens:N0} tokens";
+            OnPropertyChanged(nameof(CanRegenerate));
+
+            if (IsVoiceEnabled)
+            {
+                if (!_kokoro.IsInitialized)
+                    StatusText = "Voice: model not loaded — restart the app or re-download the model.";
+                else if (!charItem.Character.VoiceProfile.IsEnabled)
+                    StatusText = "Voice: no voice set for this character — edit the character and add a voice.";
+                else
+                {
+                    var synthMsgs = Messages.TakeLast(segments.Count).Where(m => !m.IsNarratorAction).ToList();
+                    foreach (var m in synthMsgs) m.IsSynthesizing = true;
+
+                    _ttsCts.Cancel();
+                    _ttsCts = new CancellationTokenSource();
+                    var ct = _ttsCts.Token;
+                    _ = _kokoro.SpeakAsync(rawText, charItem.Character.VoiceProfile,
+                            AppConfig.Current.NarratorVoiceProfile, ct)
+                        .ContinueWith(t =>
                         {
-                            foreach (var m in synthMsgs) m.IsSynthesizing = false;
-                            if (t.IsFaulted)
-                                StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}";
-                        });
-                    }, TaskScheduler.Default);
+                            var ex = t.Exception?.GetBaseException();
+                            Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                foreach (var m in synthMsgs) m.IsSynthesizing = false;
+                                if (t.IsFaulted)
+                                    StatusText = $"Voice error: {ex?.GetType().Name}: {ex?.Message} @ {ex?.StackTrace?.Split('\n').FirstOrDefault()?.Trim()}";
+                            });
+                        }, TaskScheduler.Default);
+                }
             }
         }
 
         AutoSave(key);
         if (Messages.Count > SummarizeThreshold)
             await TrySummarizeAsync(key);
+        _ = FireNarratorAsync(key);
     }
 
     private async Task SendToPartyAsync(PartyItem partyItem, string key, string text)
     {
         StatusText = $"{partyItem.DisplayName} is responding…";
 
-        var memory   = GetMemory(key);
-        var lore     = OpenRouterService.MatchLore(Messages.Select(vm => vm.Message), text, _lorebook.Entries);
-        var members  = partyItem.Members.Select(m => m.Character);
-        var replies  = await _openRouter.ChatPartyAsync(
-            partyItem.Party,
+        var memory = GetMemory(key);
+        var lore   = OpenRouterService.MatchLore(Messages.Select(vm => vm.Message), text, _lorebook.Entries);
+
+        // Merge catalog party members with any narrator-added scene NPCs
+        var members = partyItem.Members
+            .Select(m => (m.DisplayName, m.Character.SystemPrompt ?? ""))
+            .ToList<(string Name, string SystemPrompt)>();
+        if (_sceneNpcs.TryGetValue(key, out var sceneMbrs))
+            members.AddRange(sceneMbrs.Select(n => (n.Name, n.Personality)));
+
+        var replies = await _openRouter.ChatPartyAsync(
+            partyItem.Party.Context ?? "",
             members,
             Messages.SkipLast(1).Select(vm => vm.Message),
             text,
@@ -641,6 +739,62 @@ public class MainViewModel : INotifyPropertyChanged
         AutoSave(key);
         if (Messages.Count > SummarizeThreshold)
             await TrySummarizeAsync(key);
+        _ = FireNarratorAsync(key);
+    }
+
+    // ── Narrator / GM ──────────────────────────────────────────────────────────
+
+    private async Task FireNarratorAsync(string key)
+    {
+        // Capture synchronously before the network await so a mid-flight conversation
+        // switch doesn't corrupt the wrong roster.
+        if (!_conversations.TryGetValue(key, out var convoVms)) return;
+        var npcNames      = GetActiveNpcNames(key);
+        var historySnap   = convoVms.Select(vm => vm.Message).ToList();
+
+        var result = await _narrator.EvaluateAsync(historySnap, npcNames);
+        if (result == null) return;
+
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            if (!_conversations.TryGetValue(key, out var vms)) return;
+
+            if (result.Narration != null)
+            {
+                vms.Add(new ChatMessageVm(new ChatMessage
+                {
+                    Text             = result.Narration,
+                    IsNarratorAction = true,
+                    SenderName       = "",
+                    Timestamp        = DateTime.Now,
+                }));
+                if (vms == Messages) ScrollToBottom?.Invoke();
+            }
+
+            if (!_sceneNpcs.ContainsKey(key))
+                _sceneNpcs[key] = new List<SceneNpc>();
+
+            _sceneNpcs[key].AddRange(result.Add);
+
+            // Only remove from narrator-created NPCs, never from anchor characters
+            foreach (var name in result.Remove)
+                _sceneNpcs[key].RemoveAll(n =>
+                    string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase));
+
+            AutoSave(key);
+        });
+    }
+
+    private List<string> GetActiveNpcNames(string key)
+    {
+        var names = new List<string>();
+        if (_selectedCharacter != null)
+            names.Add(_selectedCharacter.DisplayName);
+        else if (_selectedParty != null)
+            names.AddRange(_selectedParty.Members.Select(m => m.DisplayName));
+        if (_sceneNpcs.TryGetValue(key, out var npcs))
+            names.AddRange(npcs.Select(n => n.Name));
+        return names;
     }
 
     // ── Persistence ────────────────────────────────────────────────────────────
@@ -652,15 +806,17 @@ public class MainViewModel : INotifyPropertyChanged
 
         var state = new ConversationState
         {
-            Memory   = string.IsNullOrEmpty(memory) ? null : memory,
-            Messages = vms.Select(vm => new ChatMessageDto
+            Memory    = string.IsNullOrEmpty(memory) ? null : memory,
+            SceneNpcs = _sceneNpcs.TryGetValue(key, out var npcs) ? npcs : new(),
+            Messages  = vms.Select(vm => new ChatMessageDto
             {
-                Text         = vm.Message.Text,
-                IsPlayer     = vm.Message.IsPlayer,
-                IsSummary    = vm.Message.IsSummary,
-                SenderName   = vm.Message.SenderName,
-                PortraitFile = vm.Message.PortraitFile,
-                Timestamp    = vm.Message.Timestamp,
+                Text             = vm.Message.Text,
+                IsPlayer         = vm.Message.IsPlayer,
+                IsSummary        = vm.Message.IsSummary,
+                IsNarratorAction = vm.Message.IsNarratorAction,
+                SenderName       = vm.Message.SenderName,
+                PortraitFile     = vm.Message.PortraitFile,
+                Timestamp        = vm.Message.Timestamp,
             }).ToList()
         };
 

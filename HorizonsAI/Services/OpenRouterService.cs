@@ -48,8 +48,8 @@ public class OpenRouterService
     // ── Party chat ─────────────────────────────────────────────────────────────
 
     public async Task<List<(string Name, string Text)>> ChatPartyAsync(
-        Party party,
-        IEnumerable<Character> members,
+        string partyContext,
+        IEnumerable<(string Name, string SystemPrompt)> members,
         IEnumerable<ChatMessage> history,
         string userMessage,
         Character? playAs = null,
@@ -63,7 +63,7 @@ public class OpenRouterService
 
         var memberList = members.ToList();
         var model      = AppConfig.Current.DefaultModel;
-        var messages   = BuildPartyMessages(party, memberList, history, userMessage, playAs, memory, lore, authorsNote);
+        var messages   = BuildPartyMessages(partyContext, memberList, history, userMessage, playAs, memory, lore, authorsNote);
         var text       = await SendAsync(model, messages);
 
         if (string.IsNullOrEmpty(text)) return [("", "…")];
@@ -143,6 +143,9 @@ public class OpenRouterService
             if (!string.IsNullOrWhiteSpace(playAs.SystemPrompt))
                 system += $"\n{playAs.SystemPrompt}";
         }
+        system += $"\n\n---\nStay in character as {character.Name}. React and speak naturally. " +
+                  "Do not narrate the scene, introduce new plot events, or act as a story director " +
+                  "— the Game Master controls the world around you.";
 
         var msgs = new List<object>();
         if (!string.IsNullOrWhiteSpace(system))
@@ -163,7 +166,7 @@ public class OpenRouterService
         return msgs;
     }
 
-    private static List<object> BuildPartyMessages(Party party, List<Character> members, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory, IReadOnlyList<LoreEntry>? lore, string? authorsNote)
+    private static List<object> BuildPartyMessages(string partyContext, List<(string Name, string SystemPrompt)> members, IEnumerable<ChatMessage> history, string userMessage, Character? playAs, string? memory, IReadOnlyList<LoreEntry>? lore, string? authorsNote)
     {
         var profiles = string.Join("\n\n", members.Select(m =>
             $"## {m.Name}\n{m.SystemPrompt}"));
@@ -187,7 +190,7 @@ public class OpenRouterService
 
             {profiles}
 
-            {(string.IsNullOrWhiteSpace(party.Context) ? "" : $"Scene context: {party.Context}")}
+            {(string.IsNullOrWhiteSpace(partyContext) ? "" : $"Scene context: {partyContext}")}
             {loreSec}
             {memorySec}
             {playerSection}
@@ -198,6 +201,9 @@ public class OpenRouterService
             **CharacterName:** [their response]
 
             Maintain each character's distinct personality and voice.
+            Each character must stay in their own role and react naturally as themselves.
+            Characters must NOT narrate the scene, introduce plot events, or direct the story
+            — the Game Master controls the world.
             """;
 
         var msgs = new List<object> { new { role = "system", content = system } };

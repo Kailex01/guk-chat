@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Settings"
-        Width="520" Height="400"
-        MinWidth="440" MinHeight="360"
+        Width="520" Height="560"
+        MinWidth="440" MinHeight="480"
         WindowStyle="None"
         ResizeMode="CanResize"
         Background="#0F1923"
@@ -109,7 +109,7 @@
                 <TextBlock Text="YOUR NAME (how you appear to characters)" Style="{StaticResource FieldLabel}"/>
                 <TextBox x:Name="SpeakerNameBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
 
-                <TextBlock Text="NARRATOR VOICE  (used for *action text* — leave voice blank to use character voice)"
+                <TextBlock Text="NARRATOR VOICE  (used for GM narration and *action text* — leave blank to use character voice)"
                            Style="{StaticResource FieldLabel}" Margin="0,4,0,4"/>
                 <!-- Voice dropdown -->
                 <ComboBox x:Name="NarratorVoiceBox"
@@ -141,6 +141,27 @@
                         <TextBox x:Name="NarratorVolumeBox" Style="{StaticResource FieldBox}"/>
                     </StackPanel>
                 </Grid>
+
+                <!-- Narrator / GM section -->
+                <Border Height="1" Background="#1E3A50" Margin="0,10,0,10"/>
+
+                <TextBlock Text="NARRATOR / GM" Foreground="#C8A020"
+                           FontSize="10" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                <CheckBox x:Name="NarratorEnabledBox" Foreground="#D4C5A0" FontSize="12"
+                          Content="Enable Narrator GM (evaluates scene after each NPC response)"
+                          Margin="0,0,0,12"/>
+
+                <TextBlock Text="NARRATOR MODEL  (blank = use default model above)"
+                           Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="NarratorModelBox" Style="{StaticResource FieldBox}" Margin="0,0,0,14"/>
+
+                <TextBlock Text="GM SYSTEM PROMPT" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="NarratorPromptBox" Style="{StaticResource FieldBox}"
+                         AcceptsReturn="True" TextWrapping="Wrap"
+                         MinLines="5" MaxLines="10"
+                         VerticalScrollBarVisibility="Auto"
+                         Margin="0,0,0,14"/>
             </StackPanel>
         </ScrollViewer>
 

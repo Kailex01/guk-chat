@@ -22,6 +22,10 @@ public partial class SettingsWindow : Window
         NarratorSpeedBox.Text  = np.Speed.ToString("F1");
         NarratorPitchBox.Text  = np.PitchSemitones.ToString("F1");
         NarratorVolumeBox.Text = np.Volume.ToString("F1");
+
+        NarratorEnabledBox.IsChecked = s.NarratorEnabled;
+        NarratorModelBox.Text        = s.NarratorModel;
+        NarratorPromptBox.Text       = s.NarratorSystemPrompt;
     }
 
     private void TitleBar_Drag(object sender, MouseButtonEventArgs e) => DragMove();
@@ -42,12 +46,18 @@ public partial class SettingsWindow : Window
         if (!string.IsNullOrWhiteSpace(voiceName))
             narratorProfile.Voices.Add(new VoiceWeight { Voice = voiceName, Weight = 1f });
 
+        var narratorPrompt = NarratorPromptBox.Text.Trim();
         AppConfig.Apply(new AppSettings
         {
             OpenRouterApiKey     = ApiKeyBox.Text.Trim(),
             DefaultModel         = DefaultModelBox.Text.Trim(),
             SpeakerName          = SpeakerNameBox.Text.Trim(),
             NarratorVoiceProfile = narratorProfile,
+            NarratorEnabled      = NarratorEnabledBox.IsChecked == true,
+            NarratorModel        = NarratorModelBox.Text.Trim(),
+            NarratorSystemPrompt = string.IsNullOrWhiteSpace(narratorPrompt)
+                                   ? AppSettings.DefaultNarratorPrompt
+                                   : narratorPrompt,
         });
         DialogResult = true;
         Close();
