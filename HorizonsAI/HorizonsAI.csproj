@@ -7,6 +7,10 @@
     <UseWPF>true</UseWPF>
     <Version>1.0.0</Version>
     <ApplicationIcon>Assets\GukTown.ico</ApplicationIcon>
+    <!-- Single-file publish: bundle native DLLs (sherpa-onnx, onnxruntime) into the exe -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\GukTown.ico" Condition="Exists('Assets\GukTown.ico')"/>
