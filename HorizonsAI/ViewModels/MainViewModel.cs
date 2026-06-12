@@ -21,8 +21,10 @@ public class MainViewModel : INotifyPropertyChanged
 
     // ── Sidebar ────────────────────────────────────────────────────────────────
 
-    public ObservableCollection<CategoryGroup> Categories { get; } = new();
-    public ObservableCollection<PartyItem>     Parties    { get; } = new();
+    public ObservableCollection<CategoryGroup> Categories        { get; } = new();
+    public ObservableCollection<PartyItem>     Parties           { get; } = new();
+    public ObservableCollection<SceneNpc>      CurrentSceneNpcs  { get; } = new();
+    public bool HasSceneNpcs => CurrentSceneNpcs.Count > 0;
 
     // ── Selected character ─────────────────────────────────────────────────────
 
@@ -386,6 +388,7 @@ public class MainViewModel : INotifyPropertyChanged
     private void SwitchConversation()
     {
         var key = ConversationKey();
+        RefreshSceneRoster(key);
         if (key is null) return;
 
         if (!_conversations.ContainsKey(key))
@@ -394,6 +397,14 @@ public class MainViewModel : INotifyPropertyChanged
         Messages   = _conversations[key];
         StatusText = "";
         ScrollToBottom?.Invoke();
+    }
+
+    private void RefreshSceneRoster(string? key)
+    {
+        CurrentSceneNpcs.Clear();
+        if (key != null && _sceneNpcs.TryGetValue(key, out var npcs))
+            foreach (var npc in npcs) CurrentSceneNpcs.Add(npc);
+        OnPropertyChanged(nameof(HasSceneNpcs));
     }
 
     private void LoadConversationFromDisk(string key)
@@ -825,6 +836,8 @@ public class MainViewModel : INotifyPropertyChanged
             foreach (var name in result.Remove)
                 _sceneNpcs[key].RemoveAll(n =>
                     string.Equals(n.Name, name, StringComparison.OrdinalIgnoreCase));
+
+            RefreshSceneRoster(key);
 
             if (anyNewCharacters) LoadCharacters();
 
