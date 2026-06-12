@@ -508,16 +508,19 @@ public class MainViewModel : INotifyPropertyChanged
             lore,
             _authorsNote);
 
-        foreach (var line in lines)
+        var rawText  = string.Join(" ", lines);
+        var segments = KokoroService.ParseSegments(rawText).ToList();
+        foreach (var (segText, isAction) in segments)
         {
             Messages.Add(new ChatMessageVm(new ChatMessage
             {
-                Text         = line,
-                IsPlayer     = false,
-                SenderName   = charItem.DisplayName,
-                Portrait     = charItem.Portrait,
-                PortraitFile = charItem.Character.Portrait,
-                Timestamp    = DateTime.Now,
+                Text             = segText,
+                IsPlayer         = false,
+                IsNarratorAction = isAction,
+                SenderName       = isAction ? "" : charItem.DisplayName,
+                Portrait         = isAction ? null : charItem.Portrait,
+                PortraitFile     = isAction ? null : charItem.Character.Portrait,
+                Timestamp        = DateTime.Now,
             }));
         }
         ScrollToBottom?.Invoke();
@@ -534,13 +537,13 @@ public class MainViewModel : INotifyPropertyChanged
                 StatusText = "Voice: no voice set for this character — edit the character and add a voice.";
             else
             {
-                var synthMsgs = Messages.TakeLast(lines.Count).ToList();
+                var synthMsgs = Messages.TakeLast(segments.Count).Where(m => !m.IsNarratorAction).ToList();
                 foreach (var m in synthMsgs) m.IsSynthesizing = true;
 
                 _ttsCts.Cancel();
                 _ttsCts = new CancellationTokenSource();
                 var ct = _ttsCts.Token;
-                _ = _kokoro.SpeakAsync(string.Join(" ", lines), charItem.Character.VoiceProfile,
+                _ = _kokoro.SpeakAsync(rawText, charItem.Character.VoiceProfile,
                         AppConfig.Current.NarratorVoiceProfile, ct)
                     .ContinueWith(t =>
                     {
@@ -581,19 +584,25 @@ public class MainViewModel : INotifyPropertyChanged
         var fileMap     = partyItem.Members.ToDictionary(m => m.Character.Name, m => m.Character.Portrait);
         var profileMap  = partyItem.Members.ToDictionary(m => m.Character.Name, m => m.Character.VoiceProfile);
 
+        int totalAdded = 0;
         foreach (var (name, msg) in replies)
         {
             portraitMap.TryGetValue(name, out var portrait);
             fileMap.TryGetValue(name, out var portraitFile);
-            Messages.Add(new ChatMessageVm(new ChatMessage
+            foreach (var (segText, isAction) in KokoroService.ParseSegments(msg))
             {
-                Text         = msg,
-                IsPlayer     = false,
-                SenderName   = name,
-                Portrait     = portrait,
-                PortraitFile = portraitFile,
-                Timestamp    = DateTime.Now,
-            }));
+                Messages.Add(new ChatMessageVm(new ChatMessage
+                {
+                    Text             = segText,
+                    IsPlayer         = false,
+                    IsNarratorAction = isAction,
+                    SenderName       = isAction ? "" : name,
+                    Portrait         = isAction ? null : portrait,
+                    PortraitFile     = isAction ? null : portraitFile,
+                    Timestamp        = DateTime.Now,
+                }));
+                totalAdded++;
+            }
         }
         ScrollToBottom?.Invoke();
         StatusText = "";
@@ -606,7 +615,7 @@ public class MainViewModel : INotifyPropertyChanged
             _ttsCts.Cancel();
             _ttsCts = new CancellationTokenSource();
             var ct = _ttsCts.Token;
-            var synthMsgs = Messages.TakeLast(replies.Count).ToList();
+            var synthMsgs = Messages.TakeLast(totalAdded).Where(m => !m.IsNarratorAction).ToList();
             foreach (var m in synthMsgs) m.IsSynthesizing = true;
 
             _ = Task.Run(async () =>

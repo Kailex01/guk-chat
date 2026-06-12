@@ -3,9 +3,10 @@ namespace HorizonsAI.Models;
 public class ChatMessage
 {
     public string       Text         { get; init; } = "";
-    public bool         IsPlayer     { get; init; }
-    public bool         IsSummary    { get; init; }
-    public bool         IsCharacter  => !IsPlayer && !IsSummary;
+    public bool         IsPlayer         { get; init; }
+    public bool         IsSummary        { get; init; }
+    public bool         IsNarratorAction { get; init; }
+    public bool         IsCharacter      => !IsPlayer && !IsSummary && !IsNarratorAction;
     public string       SenderName   { get; init; } = "";
     public string?      PortraitFile { get; init; }
     public BitmapImage? Portrait     { get; init; }

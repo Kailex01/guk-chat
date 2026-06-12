@@ -8,9 +8,10 @@ public class ChatMessageVm : INotifyPropertyChanged
     public ChatMessage Message => _msg;
 
     // Pass-through display properties
-    public bool         IsPlayer     => _msg.IsPlayer;
-    public bool         IsCharacter  => _msg.IsCharacter;
-    public bool         IsSummary    => _msg.IsSummary;
+    public bool         IsPlayer         => _msg.IsPlayer;
+    public bool         IsCharacter      => _msg.IsCharacter;
+    public bool         IsSummary        => _msg.IsSummary;
+    public bool         IsNarratorAction => _msg.IsNarratorAction;
     public string       SenderName   => _msg.SenderName;
     public string?      PortraitFile => _msg.PortraitFile;
     public BitmapImage? Portrait     => _msg.Portrait;
@@ -66,13 +67,14 @@ public class ChatMessageVm : INotifyPropertyChanged
         if (string.IsNullOrEmpty(trimmed)) return;
         _msg = new ChatMessage
         {
-            Text         = trimmed,
-            IsPlayer     = _msg.IsPlayer,
-            IsSummary    = _msg.IsSummary,
-            SenderName   = _msg.SenderName,
-            PortraitFile = _msg.PortraitFile,
-            Portrait     = _msg.Portrait,
-            Timestamp    = _msg.Timestamp,
+            Text             = trimmed,
+            IsPlayer         = _msg.IsPlayer,
+            IsSummary        = _msg.IsSummary,
+            IsNarratorAction = _msg.IsNarratorAction,
+            SenderName       = _msg.SenderName,
+            PortraitFile     = _msg.PortraitFile,
+            Portrait         = _msg.Portrait,
+            Timestamp        = _msg.Timestamp,
         };
         IsEditing = false;
         OnPropertyChanged(nameof(Text));

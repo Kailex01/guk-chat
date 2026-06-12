@@ -585,6 +585,15 @@
                                             <Image Source="{Binding Portrait}" Stretch="UniformToFill"/>
                                         </Border>
                                     </Grid>
+                                    <!-- Narrator action line -->
+                                    <TextBlock
+                                        Visibility="{Binding IsNarratorAction, Converter={StaticResource BoolToVis}}"
+                                        Text="{Binding Text}"
+                                        HorizontalAlignment="Center" TextAlignment="Center"
+                                        FontStyle="Italic" Foreground="#C8A020"
+                                        FontSize="13" TextWrapping="Wrap"
+                                        Margin="40,2,40,2"/>
+
                                     <!-- Character / party-member bubble -->
                                     <Grid HorizontalAlignment="Left" MaxWidth="580"
                                           Visibility="{Binding IsCharacter, Converter={StaticResource BoolToVis}}">

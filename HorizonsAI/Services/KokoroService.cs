@@ -103,9 +103,9 @@ public sealed class KokoroService : IDisposable
         }
     }
 
-    // Splits text into (text, isAction) segments on *emote* markers.
+    // Splits text into (text, isAction) segments on *emote* markers — public so MainViewModel can use it for display.
     // "Hello *waves hand* there" → [("Hello", false), ("waves hand", true), ("there", false)]
-    private static IEnumerable<(string Text, bool IsAction)> ParseSegments(string text)
+    public static IEnumerable<(string Text, bool IsAction)> ParseSegments(string text)
     {
         var segments = new List<(string, bool)>();
         var regex    = new Regex(@"\*([^*]+)\*");
