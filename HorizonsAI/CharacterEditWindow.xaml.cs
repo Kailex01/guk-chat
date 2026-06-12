@@ -55,6 +55,8 @@ public partial class CharacterEditWindow : Window
         IntBox.Text = st.Int.ToString();
         WisBox.Text = st.Wis.ToString();
         ChaBox.Text = st.Cha.ToString();
+        HpBox.Text  = st.Hp.ToString();
+        AcBox.Text  = st.Ac.ToString();
 
         LoadVoiceProfile();
     }
@@ -218,12 +220,14 @@ public partial class CharacterEditWindow : Window
         _character.Enabled      = EnabledBox.IsChecked ?? true;
 
         var st = _character.Stats;
-        if (int.TryParse(StrBox.Text, out var str)) st.Str = Math.Clamp(str, 1, 30);
-        if (int.TryParse(DexBox.Text, out var dex)) st.Dex = Math.Clamp(dex, 1, 30);
-        if (int.TryParse(ConBox.Text, out var con)) st.Con = Math.Clamp(con, 1, 30);
+        if (int.TryParse(StrBox.Text, out var str))  st.Str = Math.Clamp(str,  1, 30);
+        if (int.TryParse(DexBox.Text, out var dex))  st.Dex = Math.Clamp(dex,  1, 30);
+        if (int.TryParse(ConBox.Text, out var con))  st.Con = Math.Clamp(con,  1, 30);
         if (int.TryParse(IntBox.Text, out var int_)) st.Int = Math.Clamp(int_, 1, 30);
-        if (int.TryParse(WisBox.Text, out var wis)) st.Wis = Math.Clamp(wis, 1, 30);
-        if (int.TryParse(ChaBox.Text, out var cha)) st.Cha = Math.Clamp(cha, 1, 30);
+        if (int.TryParse(WisBox.Text, out var wis))  st.Wis = Math.Clamp(wis,  1, 30);
+        if (int.TryParse(ChaBox.Text, out var cha))  st.Cha = Math.Clamp(cha,  1, 30);
+        if (int.TryParse(HpBox.Text,  out var hp))   st.Hp  = Math.Max(1, hp);
+        if (int.TryParse(AcBox.Text,  out var ac))   st.Ac  = Math.Clamp(ac,  1, 30);
 
         SaveVoiceProfile();
 

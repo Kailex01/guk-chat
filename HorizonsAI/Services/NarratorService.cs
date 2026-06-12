@@ -97,10 +97,12 @@ public class NarratorService
                 "You create roleplay character profiles. Return ONLY a JSON object, no other text:\n" +
                 "{\n" +
                 "  \"prompt\": \"You are [Name]... (3-5 sentences: personality, speech style, motivations, role in scene)\",\n" +
-                "  \"stats\": { \"str\": 10, \"dex\": 10, \"con\": 10, \"int\": 10, \"wis\": 10, \"cha\": 10 }\n" +
+                "  \"stats\": { \"str\": 10, \"dex\": 10, \"con\": 10, \"int\": 10, \"wis\": 10, \"cha\": 10, \"hp\": 10, \"ac\": 10 }\n" +
                 "}\n" +
-                "Stats should reflect the character (average human=10, range 6-18). " +
-                "A barkeep might have CON 13, CHA 12. A guard has STR 13, CON 12. A scholar has INT 15. Etc." },
+                "Stats should reflect the character (average human=10, ability range 6-18). " +
+                "hp = max hit points (commoner ~8, guard ~11, veteran ~52). " +
+                "ac = armor class (unarmored ~10, leather ~11, chain ~14, plate ~18). " +
+                "A barkeep: CON 13, CHA 12, hp 9, ac 10. A guard: STR 13, CON 12, hp 11, ac 16. Etc." },
             new { role = "user", content =
                 $"Name: {name}\n" +
                 $"Personality sketch: {personality}\n\n" +
@@ -215,6 +217,8 @@ public class NarratorService
                 if (sEl.TryGetProperty("int", out v))     stats.Int = v.GetInt32();
                 if (sEl.TryGetProperty("wis", out v))     stats.Wis = v.GetInt32();
                 if (sEl.TryGetProperty("cha", out v))     stats.Cha = v.GetInt32();
+                if (sEl.TryGetProperty("hp",  out v))     stats.Hp  = v.GetInt32();
+                if (sEl.TryGetProperty("ac",  out v))     stats.Ac  = v.GetInt32();
             }
 
             return new CharacterDraft(prompt, stats);

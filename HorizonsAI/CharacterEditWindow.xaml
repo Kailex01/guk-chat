@@ -287,6 +287,23 @@
                     </StackPanel>
                 </Border>
 
+                <!-- HP / AC -->
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="HP (Hit Points)" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="HpBox" Style="{StaticResource FieldBox}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="AC (Armor Class)" Style="{StaticResource FieldLabel}"/>
+                        <TextBox x:Name="AcBox" Style="{StaticResource FieldBox}"/>
+                    </StackPanel>
+                </Grid>
+
                 <!-- Enabled -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <CheckBox x:Name="EnabledBox" IsChecked="True"

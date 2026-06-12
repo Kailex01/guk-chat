@@ -8,6 +8,8 @@ public class StatBlock
     [JsonPropertyName("int")] public int Int { get; set; } = 10;
     [JsonPropertyName("wis")] public int Wis { get; set; } = 10;
     [JsonPropertyName("cha")] public int Cha { get; set; } = 10;
+    [JsonPropertyName("hp")]  public int Hp  { get; set; } = 10;
+    [JsonPropertyName("ac")]  public int Ac  { get; set; } = 10;
 
     public int Mod(int score) => (int)Math.Floor((score - 10) / 2.0);
 
