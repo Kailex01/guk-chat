@@ -108,7 +108,7 @@ public sealed class KokoroService : IDisposable
     public static IEnumerable<(string Text, bool IsAction)> ParseSegments(string text)
     {
         var segments = new List<(string, bool)>();
-        var regex    = new Regex(@"\*([^*]+)\*");
+        var regex    = new Regex(@"(?<!\*)\*([^*]+)\*(?!\*)");
         int pos      = 0;
 
         foreach (Match match in regex.Matches(text))

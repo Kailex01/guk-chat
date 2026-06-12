@@ -143,9 +143,10 @@ public class OpenRouterService
             if (!string.IsNullOrWhiteSpace(playAs.SystemPrompt))
                 system += $"\n{playAs.SystemPrompt}";
         }
-        system += $"\n\n---\nStay in character as {character.Name}. React and speak naturally. " +
-                  "Do not narrate the scene, introduce new plot events, or act as a story director " +
-                  "— the Game Master controls the world around you.";
+        system += $"\n\n---\nYou are {character.Name} and you speak ONLY as {character.Name}. " +
+                  "Never write dialogue or actions for any other character — not even unnamed ones. " +
+                  "Do not narrate the scene or introduce plot events. " +
+                  "The Game Master controls the world; you only react to it.";
 
         var msgs = new List<object>();
         if (!string.IsNullOrWhiteSpace(system))
@@ -153,6 +154,11 @@ public class OpenRouterService
 
         foreach (var msg in history.Where(m => !m.IsSummary))
         {
+            if (msg.IsNarratorAction)
+            {
+                msgs.Add(new { role = "system", content = $"[Scene: {msg.Text}]" });
+                continue;
+            }
             var content = msg.IsPlayer && !string.IsNullOrEmpty(msg.SenderName)
                 ? $"{msg.SenderName}: {msg.Text}"
                 : msg.Text;
@@ -210,6 +216,11 @@ public class OpenRouterService
 
         foreach (var msg in history.Where(m => !m.IsSummary))
         {
+            if (msg.IsNarratorAction)
+            {
+                msgs.Add(new { role = "system", content = $"[Scene: {msg.Text}]" });
+                continue;
+            }
             var content = msg.IsPlayer && !string.IsNullOrEmpty(msg.SenderName)
                 ? $"{msg.SenderName}: {msg.Text}"
                 : $"**{msg.SenderName}:** {msg.Text}";
