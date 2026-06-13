@@ -139,72 +139,40 @@ public sealed class KokoroService : IDisposable
         var voices = profile.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
         if (voices.Count == 0) return ([], SampleRate);
 
-        var totalWeight = voices.Sum(v => v.Weight);
-        if (totalWeight <= 0f) totalWeight = 1f;
+        // Mixing separate TTS streams causes echo — each voice has its own cadence so they
+        // are never time-aligned when summed. Use weighted random selection instead: one voice
+        // is picked per utterance, giving a natural blend effect across many lines.
+        var entry = voices.Count == 1 ? voices[0] : PickWeighted(voices);
+        var sid   = ResolveSid(entry.Voice);
 
-        var parts      = new List<(float[] samples, float weight)>(voices.Count);
-        var sampleRate = SampleRate; // updated from first successful result
-        foreach (var entry in voices)
+        try
         {
-            var sid = ResolveSid(entry.Voice);
-            try
+            var result  = _tts!.Generate(text, profile.Speed, sid);
+            var samples = result?.Samples;
+            if (samples?.Length > 0)
             {
-                var result  = _tts!.Generate(text, profile.Speed, sid);
-                var samples = result?.Samples;
-                if (samples?.Length > 0)
-                {
-                    sampleRate = result!.SampleRate > 0 ? result.SampleRate : SampleRate;
-                    parts.Add((samples, entry.Weight / totalWeight));
-                }
+                var sr = result!.SampleRate > 0 ? result.SampleRate : SampleRate;
+                return (samples, sr);
             }
-            catch { /* native generation failed for this voice — skip it */ }
         }
+        catch { }
 
-        if (parts.Count == 0) return ([], sampleRate);
-        var mixed = parts.Count == 1 ? parts[0].samples : BlendAudio(parts);
-        return (mixed, sampleRate);
+        return ([], SampleRate);
     }
 
-    private static float[] BlendAudio(List<(float[] samples, float weight)> parts)
+    private static VoiceWeight PickWeighted(List<VoiceWeight> voices)
     {
-        var targetLen = parts.Max(p => p.samples.Length);
-        var output    = new float[targetLen];
+        var total = voices.Sum(v => v.Weight);
+        if (total <= 0f) return voices[0];
 
-        foreach (var (samples, weight) in parts)
+        var   pick  = (float)(Random.Shared.NextDouble() * total);
+        float cumul = 0f;
+        foreach (var v in voices)
         {
-            var aligned = samples.Length == targetLen ? samples : Resample(samples, targetLen);
-            for (int i = 0; i < targetLen; i++)
-                output[i] += aligned[i] * weight;
+            cumul += v.Weight;
+            if (pick <= cumul) return v;
         }
-
-        // Prevent clipping from weighted sum
-        var peak = output.Max(s => Math.Abs(s));
-        if (peak > 0.99f)
-        {
-            float scale = 0.99f / peak;
-            for (int i = 0; i < output.Length; i++) output[i] *= scale;
-        }
-
-        return output;
-    }
-
-    private static float[] Resample(float[] input, int targetLen)
-    {
-        if (input.Length == targetLen) return input;
-        if (targetLen <= 1) return [input[0]];
-
-        var    output = new float[targetLen];
-        double step   = (double)(input.Length - 1) / (targetLen - 1);
-
-        for (int i = 0; i < targetLen; i++)
-        {
-            double pos  = i * step;
-            int    lo   = (int)pos;
-            int    hi   = Math.Min(lo + 1, input.Length - 1);
-            float  t    = (float)(pos - lo);
-            output[i]   = input[lo] * (1f - t) + input[hi] * t;
-        }
-        return output;
+        return voices[^1];
     }
 
     // ── Post-processing ────────────────────────────────────────────────────────
