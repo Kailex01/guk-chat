@@ -51,6 +51,12 @@ public class MainViewModel : INotifyPropertyChanged
                     _selectedParty = null;
                     OnPropertyChanged(nameof(SelectedParty));
                 }
+                if (_selectedScene != null)
+                {
+                    _selectedScene.IsSelected = false;
+                    _selectedScene = null;
+                    OnPropertyChanged(nameof(SelectedScene));
+                }
             }
             NotifyActiveChanged();
             SwitchConversation();
@@ -79,6 +85,12 @@ public class MainViewModel : INotifyPropertyChanged
                     _selectedCharacter = null;
                     OnPropertyChanged(nameof(SelectedCharacter));
                 }
+                if (_selectedScene != null)
+                {
+                    _selectedScene.IsSelected = false;
+                    _selectedScene = null;
+                    OnPropertyChanged(nameof(SelectedScene));
+                }
             }
             NotifyActiveChanged();
             SwitchConversation();
@@ -101,8 +113,10 @@ public class MainViewModel : INotifyPropertyChanged
             if (_selectedScene != null)
             {
                 _selectedScene.IsSelected = true;
-                if (_selectedCharacter != null) { _selectedCharacter.IsSelected = false; _selectedCharacter = null; OnPropertyChanged(nameof(SelectedCharacter)); }
-                if (_selectedParty    != null) { _selectedParty.IsSelected    = false; _selectedParty    = null; OnPropertyChanged(nameof(SelectedParty));    }
+                foreach (var c in _allCharactersFlat.Where(c => c.IsSelected)) c.IsSelected = false;
+                _selectedCharacter = null;
+                OnPropertyChanged(nameof(SelectedCharacter));
+                if (_selectedParty != null) { _selectedParty.IsSelected = false; _selectedParty = null; OnPropertyChanged(nameof(SelectedParty)); }
             }
             NotifyActiveChanged();
             SwitchConversation();
@@ -392,6 +406,9 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 match.IsSelected = true;
                 _selectedParty   = match;
+                foreach (var c in _allCharactersFlat.Where(c => c.IsSelected)) c.IsSelected = false;
+                _selectedCharacter = null;
+                if (_selectedScene != null) { _selectedScene.IsSelected = false; _selectedScene = null; }
                 NotifyActiveChanged();
             }
         }
@@ -425,6 +442,9 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 match.IsSelected = true;
                 _selectedScene   = match;
+                foreach (var c in _allCharactersFlat.Where(c => c.IsSelected)) c.IsSelected = false;
+                _selectedCharacter = null;
+                if (_selectedParty != null) { _selectedParty.IsSelected = false; _selectedParty = null; }
                 NotifyActiveChanged();
             }
         }
