@@ -286,6 +286,60 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Quick-insert chip button base (template only; color via child styles) -->
+        <Style x:Key="QuickBtn" TargetType="Button">
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="9"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="6,3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin"          Value="2,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <TextBlock Text="{TemplateBinding Content}"
+                                       Foreground="{TemplateBinding Foreground}"
+                                       FontSize="{TemplateBinding FontSize}"
+                                       FontWeight="{TemplateBinding FontWeight}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Attack chip: gold -->
+        <Style x:Key="QuickBtnAtk" TargetType="Button" BasedOn="{StaticResource QuickBtn}">
+            <Setter Property="Background"  Value="#2A1800"/>
+            <Setter Property="Foreground"  Value="#C8A020"/>
+            <Setter Property="BorderBrush" Value="#4A3010"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#4A3010"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Check chip: blue -->
+        <Style x:Key="QuickBtnChk" TargetType="Button" BasedOn="{StaticResource QuickBtn}">
+            <Setter Property="Background"  Value="#0A1E30"/>
+            <Setter Property="Foreground"  Value="#4A8AB0"/>
+            <Setter Property="BorderBrush" Value="#1A3A50"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1A3A50"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
@@ -486,7 +540,8 @@
                     <RowDefinition Height="Auto"/>  <!-- 2: regenerate button -->
                     <RowDefinition Height="Auto"/>  <!-- 3: status text -->
                     <RowDefinition Height="Auto"/>  <!-- 4: author's note panel -->
-                    <RowDefinition Height="60"/>    <!-- 5: input bar -->
+                    <RowDefinition Height="Auto"/>  <!-- 5: quick action buttons -->
+                    <RowDefinition Height="Auto"/>  <!-- 6: input bar -->
                 </Grid.RowDefinitions>
 
                 <!-- Character header (single character mode) -->
@@ -852,8 +907,51 @@
                     </Grid>
                 </Border>
 
-                <!-- Input bar (Row 5) -->
-                <Border Grid.Row="5" Background="#0A1018"
+                <!-- Quick action buttons (Row 5) -->
+                <Border Grid.Row="5" Background="#080E14"
+                        BorderBrush="#1E3A50" BorderThickness="0,1,0,0"
+                        Padding="10,5"
+                        IsEnabled="{Binding HasActiveCharacter}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="ATK" Foreground="#6A4A10" FontSize="9" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <Button Style="{StaticResource QuickBtnAtk}" Content="STR"
+                                Tag="[attack str]"  Click="QuickInsert_Click" Margin="0,0,0,0"
+                                ToolTip="Insert [attack str]"/>
+                        <Button Style="{StaticResource QuickBtnAtk}" Content="DEX"
+                                Tag="[attack dex]"  Click="QuickInsert_Click"
+                                ToolTip="Insert [attack dex]"/>
+                        <Button Style="{StaticResource QuickBtnAtk}" Content="SMP"
+                                Tag="[attack str simple]" Click="QuickInsert_Click"
+                                ToolTip="Insert [attack str simple] — unarmed / improvised (1d4)"/>
+
+                        <Rectangle Width="1" Fill="#1E3A50" Margin="8,2"/>
+
+                        <TextBlock Text="CHK" Foreground="#1A4A6A" FontSize="9" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="STR"
+                                Tag="[check str]" Click="QuickInsert_Click" Margin="0,0,0,0"
+                                ToolTip="Insert [check str]"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="DEX"
+                                Tag="[check dex]" Click="QuickInsert_Click"
+                                ToolTip="Insert [check dex]"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="CON"
+                                Tag="[check con]" Click="QuickInsert_Click"
+                                ToolTip="Insert [check con]"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="INT"
+                                Tag="[check int]" Click="QuickInsert_Click"
+                                ToolTip="Insert [check int]"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="WIS"
+                                Tag="[check wis]" Click="QuickInsert_Click"
+                                ToolTip="Insert [check wis]"/>
+                        <Button Style="{StaticResource QuickBtnChk}" Content="CHA"
+                                Tag="[check cha]" Click="QuickInsert_Click"
+                                ToolTip="Insert [check cha]"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Input bar (Row 6) -->
+                <Border Grid.Row="6" Background="#0A1018"
                         BorderBrush="#1E3A50" BorderThickness="0,1,0,0">
                     <Grid Margin="12,8">
                         <Grid.ColumnDefinitions>
@@ -891,8 +989,12 @@
                                      Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="#D4C5A0" FontSize="13" Padding="10,7"
-                                     VerticalAlignment="Center" CaretBrush="#C8A020"
+                                     CaretBrush="#C8A020"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     MinLines="2" MaxLines="3"
+                                     VerticalScrollBarVisibility="Auto"
                                      IsEnabled="{Binding HasActiveCharacter}"
+                                     PreviewKeyDown="InputBox_PreviewKeyDown"
                                      KeyDown="InputBox_KeyDown"/>
                         </Border>
 

@@ -207,13 +207,52 @@ public partial class MainWindow : Window
 
     // ── Input ──────────────────────────────────────────────────────────────────
 
+    private int    _historyIndex = -1;
+    private string _historyDraft = "";
+
+    private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var history = _vm.InputHistory;
+        if (e.Key == Key.Up && InputBox.GetLineIndexFromCharacterIndex(InputBox.CaretIndex) == 0)
+        {
+            if (history.Count == 0) { e.Handled = true; return; }
+            if (_historyIndex == -1) _historyDraft = InputBox.Text;
+            _historyIndex = Math.Min(_historyIndex + 1, history.Count - 1);
+            InputBox.Text = history[_historyIndex];
+            InputBox.CaretIndex = InputBox.Text.Length;
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Down && _historyIndex >= 0
+                 && InputBox.GetLineIndexFromCharacterIndex(InputBox.CaretIndex) == InputBox.LineCount - 1)
+        {
+            _historyIndex--;
+            InputBox.Text = _historyIndex >= 0 ? history[_historyIndex] : _historyDraft;
+            if (_historyIndex < 0) _historyIndex = -1;
+            InputBox.CaretIndex = InputBox.Text.Length;
+            e.Handled = true;
+        }
+    }
+
     private void InputBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && _vm.SendCommand.CanExecute(null))
+        // Enter without Shift = send; Shift+Enter = newline (AcceptsReturn handles it)
+        if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0
+            && _vm.SendCommand.CanExecute(null))
         {
+            _historyIndex = -1;
             _vm.SendCommand.Execute(null);
             e.Handled = true;
         }
+    }
+
+    private void QuickInsert_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement el || el.Tag is not string token) return;
+        int   caret  = InputBox.CaretIndex;
+        var   prefix = caret > 0 && InputBox.Text.Length > 0 && InputBox.Text[caret - 1] != ' ' ? " " : "";
+        InputBox.Text       = InputBox.Text.Insert(caret, prefix + token);
+        InputBox.CaretIndex = caret + prefix.Length + token.Length;
+        InputBox.Focus();
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

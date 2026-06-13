@@ -201,6 +201,9 @@ public class MainViewModel : INotifyPropertyChanged
         set { _inputText = value; OnPropertyChanged(); }
     }
 
+    private readonly List<string> _inputHistory = new(3);
+    public IReadOnlyList<string> InputHistory => _inputHistory;
+
     private bool _isSending;
     public bool IsSending
     {
@@ -552,7 +555,10 @@ public class MainViewModel : INotifyPropertyChanged
         if (key is null) return;
 
         var rawText = InputText.Trim();
-        InputText   = "";
+        _inputHistory.RemoveAll(h => h == rawText);
+        _inputHistory.Insert(0, rawText);
+        if (_inputHistory.Count > 3) _inputHistory.RemoveAt(3);
+        InputText = "";
         var text    = ResolveChecks(rawText, key);
         IsSending   = true;
 
