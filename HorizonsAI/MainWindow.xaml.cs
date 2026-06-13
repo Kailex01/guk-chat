@@ -1,3 +1,4 @@
+using GukVoice.Kokoro.Services;
 using HorizonsAI.Models;
 using HorizonsAI.Services;
 using HorizonsAI.ViewModels;
@@ -24,7 +25,7 @@ public partial class MainWindow : Window
         {
             _vm.LoadCharacters(); // LoadCharacters calls LoadParties internally
             _vm.LoadScenes();
-            if (KokoroService.IsModelReady)
+            if (KokoroService.IsModelReady(AppConfig.TtsFolder))
             {
                 try { _vm.InitializeTts(); }
                 catch (Exception ex)

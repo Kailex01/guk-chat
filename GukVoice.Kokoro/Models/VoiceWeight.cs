@@ -1,4 +1,4 @@
-namespace HorizonsAI.Models;
+namespace GukVoice.Kokoro.Models;
 
 public class VoiceWeight
 {

@@ -1,7 +1,8 @@
 using System.Windows.Input;
 using System.Windows.Media;
+using GukVoice.Kokoro.Models;
+using GukVoice.Kokoro.Services;
 using HorizonsAI.Models;
-using HorizonsAI.Services;
 using Microsoft.Win32;
 
 namespace HorizonsAI;
@@ -116,7 +117,7 @@ public partial class CharacterEditWindow : Window
             Padding         = new Thickness(6, 4, 6, 4),
             ToolTip         = "Type any voice name or pick from the list",
         };
-        foreach (var v in KokoroService.GetInstalledVoiceNames()) voiceBox.Items.Add(v);
+        foreach (var v in KokoroService.GetInstalledVoiceNames(AppConfig.TtsFolder)) voiceBox.Items.Add(v);
 
         var weightLabel = new TextBlock
         {

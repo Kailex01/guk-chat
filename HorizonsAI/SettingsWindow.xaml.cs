@@ -1,6 +1,7 @@
 using System.Windows.Input;
+using GukVoice.Kokoro.Models;
+using GukVoice.Kokoro.Services;
 using HorizonsAI.Models;
-using HorizonsAI.Services;
 
 namespace HorizonsAI;
 
@@ -15,7 +16,7 @@ public partial class SettingsWindow : Window
         SpeakerNameBox.Text     = s.SpeakerName;
         MaxReplyTokensBox.Text  = s.MaxReplyTokens.ToString();
 
-        foreach (var v in KokoroService.GetInstalledVoiceNames())
+        foreach (var v in KokoroService.GetInstalledVoiceNames(AppConfig.TtsFolder))
             NarratorVoiceBox.Items.Add(v);
 
         var np = s.NarratorVoiceProfile;

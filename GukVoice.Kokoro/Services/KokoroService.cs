@@ -1,26 +1,30 @@
-using System.IO;
 using System.Text.RegularExpressions;
-using HorizonsAI;
-using HorizonsAI.Models;
+using GukVoice.Kokoro.Models;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using SherpaOnnx;
 
-namespace HorizonsAI.Services;
+namespace GukVoice.Kokoro.Services;
 
 public sealed class KokoroService : IDisposable
 {
-    private OfflineTts?   _tts;
+    private readonly string        _ttsFolder;
+    private OfflineTts?            _tts;
     private IReadOnlyDictionary<string, int> _sidMap = SidsV10;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private const int SampleRate = 24000;
 
+    public KokoroService(string ttsFolder)
+    {
+        _ttsFolder = ttsFolder;
+    }
+
     // ── Model readiness ────────────────────────────────────────────────────────
 
     // model_type.txt is written only after full extraction — guards against partial downloads
-    public static bool IsModelReady =>
-        File.Exists(Path.Combine(AppConfig.TtsFolder, "model_type.txt"));
+    public static bool IsModelReady(string ttsFolder) =>
+        File.Exists(Path.Combine(ttsFolder, "model_type.txt"));
 
     public bool IsInitialized => _tts != null;
 
@@ -28,9 +32,9 @@ public sealed class KokoroService : IDisposable
 
     public void Initialize()
     {
-        if (_tts != null || !IsModelReady) return;
+        if (_tts != null || !IsModelReady(_ttsFolder)) return;
 
-        var folder     = AppConfig.TtsFolder;
+        var folder     = _ttsFolder;
         var markerFile = Path.Combine(folder, "model_type.txt");
         var modelType  = File.Exists(markerFile) ? File.ReadAllText(markerFile).Trim() : "en-v0_19";
         var isMulti    = modelType != "en-v0_19";
@@ -47,7 +51,6 @@ public sealed class KokoroService : IDisposable
 
         if (isMulti)
         {
-            // Multilingual model requires lexicon files and the jieba dict directory
             var lexicons = new[] { "lexicon-us-en.txt", "lexicon-gb-en.txt", "lexicon-zh.txt" }
                 .Select(f => Path.Combine(folder, f))
                 .Where(File.Exists)
@@ -103,7 +106,7 @@ public sealed class KokoroService : IDisposable
         }
     }
 
-    // Splits text into (text, isAction) segments on *emote* markers — public so MainViewModel can use it for display.
+    // Splits text into (text, isAction) segments on *emote* markers — public so callers can use it for display.
     // "Hello *waves hand* there" → [("Hello", false), ("waves hand", true), ("there", false)]
     public static IEnumerable<(string Text, bool IsAction)> ParseSegments(string text)
     {
@@ -239,9 +242,9 @@ public sealed class KokoroService : IDisposable
 
     // ── Voice name lists (for UI dropdowns) ───────────────────────────────────
 
-    public static string[] GetInstalledVoiceNames()
+    public static string[] GetInstalledVoiceNames(string ttsFolder)
     {
-        var markerFile = Path.Combine(AppConfig.TtsFolder, "model_type.txt");
+        var markerFile = Path.Combine(ttsFolder, "model_type.txt");
         var modelType  = File.Exists(markerFile) ? File.ReadAllText(markerFile).Trim() : "";
         return modelType switch
         {

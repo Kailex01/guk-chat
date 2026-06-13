@@ -1,0 +1,24 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HorizonsAI", "HorizonsAI\HorizonsAI.csproj", "{E23CAF9A-1746-49C3-A833-CF864614BA9B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GukVoice.Kokoro", "GukVoice.Kokoro\GukVoice.Kokoro.csproj", "{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E23CAF9A-1746-49C3-A833-CF864614BA9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E23CAF9A-1746-49C3-A833-CF864614BA9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E23CAF9A-1746-49C3-A833-CF864614BA9B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E23CAF9A-1746-49C3-A833-CF864614BA9B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

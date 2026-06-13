@@ -1,3 +1,5 @@
+using GukVoice.Kokoro.Models;
+
 namespace HorizonsAI.Models;
 
 public class Character

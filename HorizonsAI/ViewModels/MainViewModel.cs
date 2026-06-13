@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using GukVoice.Kokoro.Models;
+using GukVoice.Kokoro.Services;
 using HorizonsAI.Models;
 using HorizonsAI.Services;
 
@@ -8,7 +10,7 @@ public class MainViewModel : INotifyPropertyChanged
 {
     private readonly HttpClient        _http   = new() { Timeout = TimeSpan.FromSeconds(60) };
     private readonly OpenRouterService _openRouter;
-    private readonly KokoroService     _kokoro = new();
+    private readonly KokoroService     _kokoro = new(AppConfig.TtsFolder);
     private readonly NarratorService   _narrator;
     private readonly Dictionary<string, ObservableCollection<ChatMessageVm>> _conversations = new();
     private readonly Dictionary<string, string>          _memory    = new();
@@ -242,7 +244,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _isVoiceEnabled = value;
             OnPropertyChanged();
-            if (value && !KokoroService.IsModelReady)
+            if (value && !KokoroService.IsModelReady(AppConfig.TtsFolder))
                 TtsSetupRequested?.Invoke();
         }
     }
