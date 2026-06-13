@@ -1,0 +1,12 @@
+global using System.Collections.ObjectModel;
+global using System.ComponentModel;
+global using System.IO;
+global using System.Runtime.CompilerServices;
+global using System.Text.Json;
+global using System.Text.Json.Serialization;
+global using System.Windows;
+global using System.Windows.Input;
+global using Application = System.Windows.Application;
+global using MessageBox = System.Windows.MessageBox;
+global using GukVoice.Kokoro.Models;
+global using GukVoice.Kokoro.Services;

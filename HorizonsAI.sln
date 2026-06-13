@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HorizonsAI", "HorizonsAI\Ho
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GukVoice.Kokoro", "GukVoice.Kokoro\GukVoice.Kokoro.csproj", "{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GukVoice", "GukVoice\GukVoice.csproj", "{DDEC78F7-E103-4663-ACA0-E47CA5CD3E18}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,5 +22,9 @@ Global
 		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ADCDE114-1875-4F34-9C1C-C4AD63A4CD77}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDEC78F7-E103-4663-ACA0-E47CA5CD3E18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDEC78F7-E103-4663-ACA0-E47CA5CD3E18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDEC78F7-E103-4663-ACA0-E47CA5CD3E18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDEC78F7-E103-4663-ACA0-E47CA5CD3E18}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
