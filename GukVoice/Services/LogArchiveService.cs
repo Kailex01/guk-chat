@@ -1,5 +1,4 @@
-using SharpCompress.Archives.GZip;
-using SharpCompress.Common;
+using System.IO.Compression;
 
 namespace GukVoice.Services;
 
@@ -15,9 +14,10 @@ public static class LogArchiveService
 
         try
         {
-            using var archive = GZipArchive.Create();
-            archive.AddEntry(Path.GetFileName(logPath), logPath);
-            archive.SaveTo(archivePath, CompressionType.GZip);
+            using var input  = File.OpenRead(logPath);
+            using var output = File.Create(archivePath);
+            using var gzip   = new GZipStream(output, CompressionLevel.Optimal);
+            input.CopyTo(gzip);
 
             // Truncate the original — EQ may still be open, so don't delete it
             File.WriteAllText(logPath, "");
