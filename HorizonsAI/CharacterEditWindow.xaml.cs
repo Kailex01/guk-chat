@@ -22,7 +22,8 @@ public partial class CharacterEditWindow : Window
         public required TextBlock WeightLabel;
     }
 
-    private readonly List<VoiceRow> _voiceRows = new();
+    private readonly List<VoiceRow> _voiceRows        = new();
+    private          bool           _adjustingWeights;
 
     private const int MaxVoices = 5;
 
@@ -66,10 +67,18 @@ public partial class CharacterEditWindow : Window
 
     private void LoadVoiceProfile()
     {
-        var p = _character.VoiceProfile;
+        var p      = _character.VoiceProfile;
+        var voices = p.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
 
-        foreach (var entry in p.Voices)
-            AddVoiceRowControl(entry.Voice, entry.Weight);
+        if (voices.Count > 0)
+        {
+            float total = voices.Sum(v => Math.Max(0f, v.Weight));
+            if (total <= 0f) total = voices.Count;
+            var pcts = voices.Select(v => (int)Math.Round(Math.Max(0f, v.Weight) / total * 100)).ToList();
+            pcts[0] = Math.Max(0, pcts[0] + (100 - pcts.Sum())); // fix rounding drift
+            for (int i = 0; i < voices.Count; i++)
+                AddVoiceRowControl(voices[i].Voice, pcts[i]);
+        }
 
         SpeedSlider.Value  = Math.Clamp(p.Speed,          0.5, 2.0);
         PitchSlider.Value  = Math.Clamp(p.PitchSemitones, -12.0, 12.0);
@@ -84,12 +93,12 @@ public partial class CharacterEditWindow : Window
         UpdateAddButtonState();
     }
 
-    private void AddVoiceRowControl(string voice = "", float weight = 1.0f)
+    private void AddVoiceRowControl(string voice = "", int weightPct = 0)
     {
         var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(26) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(70) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
@@ -111,7 +120,7 @@ public partial class CharacterEditWindow : Window
 
         var weightLabel = new TextBlock
         {
-            Text              = weight.ToString("F1"),
+            Text              = $"{weightPct}%",
             Foreground        = new SolidColorBrush(Color.FromRgb(0xC8, 0xA0, 0x20)),
             FontSize          = 10,
             TextAlignment     = TextAlignment.Right,
@@ -120,18 +129,17 @@ public partial class CharacterEditWindow : Window
 
         var weightSlider = new Slider
         {
-            Minimum             = 0.1,
-            Maximum             = 5.0,
-            Value               = Math.Clamp(weight, 0.1f, 5.0f),
-            SmallChange         = 0.1,
-            LargeChange         = 0.5,
-            TickFrequency       = 0.1,
+            Minimum             = 0,
+            Maximum             = 100,
+            Value               = weightPct,
+            SmallChange         = 1,
+            LargeChange         = 5,
+            TickFrequency       = 1,
             IsSnapToTickEnabled = true,
             VerticalAlignment   = VerticalAlignment.Center,
             Style               = (Style)FindResource("DarkSlider"),
-            ToolTip             = "Blend weight — higher = picked more often",
+            ToolTip             = "Pick chance — all voices together sum to 100%",
         };
-        weightSlider.ValueChanged += (_, e) => weightLabel.Text = e.NewValue.ToString("F1");
 
         var removeBtn = new Button
         {
@@ -145,10 +153,16 @@ public partial class CharacterEditWindow : Window
         };
 
         var row = new VoiceRow { Container = grid, VoiceBox = voiceBox, WeightSlider = weightSlider, WeightLabel = weightLabel };
+        weightSlider.ValueChanged += (_, e) =>
+        {
+            weightLabel.Text = $"{(int)Math.Round(e.NewValue)}%";
+            OnWeightSliderChanged(row, e.NewValue);
+        };
         removeBtn.Click += (_, _) =>
         {
             _voiceRows.Remove(row);
             VoiceEntriesPanel.Children.Remove(grid);
+            NormalizeToHundred();
             UpdateAddButtonState();
         };
 
@@ -172,7 +186,109 @@ public partial class CharacterEditWindow : Window
     {
         if (_voiceRows.Count >= MaxVoices) return;
         AddVoiceRowControl();
+        RedistributeEqually();
         UpdateAddButtonState();
+    }
+
+    private void OnWeightSliderChanged(VoiceRow changedRow, double rawValue)
+    {
+        if (_adjustingWeights) return;
+        _adjustingWeights = true;
+        try
+        {
+            int pct    = (int)Math.Round(rawValue);
+            var others = _voiceRows.Where(r => r != changedRow).ToList();
+
+            if (others.Count == 0)
+            {
+                changedRow.WeightSlider.Value = 100;
+                changedRow.WeightLabel.Text   = "100%";
+                return;
+            }
+
+            int remaining        = 100 - pct;
+            int othersCurrentSum = others.Sum(r => (int)Math.Round(r.WeightSlider.Value));
+
+            if (remaining <= 0)
+            {
+                foreach (var o in others) { o.WeightSlider.Value = 0; o.WeightLabel.Text = "0%"; }
+            }
+            else if (othersCurrentSum == 0)
+            {
+                int basePct  = remaining / others.Count;
+                int leftover = remaining - basePct * others.Count;
+                for (int i = 0; i < others.Count; i++)
+                {
+                    int p = basePct + (i == 0 ? leftover : 0);
+                    others[i].WeightSlider.Value = p;
+                    others[i].WeightLabel.Text   = $"{p}%";
+                }
+            }
+            else
+            {
+                int distributed = 0;
+                for (int i = 0; i < others.Count - 1; i++)
+                {
+                    int oldPct = (int)Math.Round(others[i].WeightSlider.Value);
+                    int newPct = (int)Math.Round((double)oldPct / othersCurrentSum * remaining);
+                    others[i].WeightSlider.Value = newPct;
+                    others[i].WeightLabel.Text   = $"{newPct}%";
+                    distributed += newPct;
+                }
+                int lastPct = remaining - distributed;
+                others[^1].WeightSlider.Value = Math.Max(0, lastPct);
+                others[^1].WeightLabel.Text   = $"{Math.Max(0, lastPct)}%";
+            }
+            changedRow.WeightLabel.Text = $"{pct}%";
+        }
+        finally
+        {
+            _adjustingWeights = false;
+        }
+    }
+
+    private void RedistributeEqually()
+    {
+        if (_voiceRows.Count == 0) return;
+        _adjustingWeights = true;
+        try
+        {
+            int n        = _voiceRows.Count;
+            int basePct  = 100 / n;
+            int leftover = 100 - basePct * n;
+            for (int i = 0; i < n; i++)
+            {
+                int pct = basePct + (i == 0 ? leftover : 0);
+                _voiceRows[i].WeightSlider.Value = pct;
+                _voiceRows[i].WeightLabel.Text   = $"{pct}%";
+            }
+        }
+        finally { _adjustingWeights = false; }
+    }
+
+    private void NormalizeToHundred()
+    {
+        if (_voiceRows.Count == 0) return;
+        _adjustingWeights = true;
+        try
+        {
+            int currentSum = _voiceRows.Sum(r => (int)Math.Round(r.WeightSlider.Value));
+            if (currentSum == 0) { RedistributeEqually(); return; }
+
+            int distributed = 0;
+            for (int i = 0; i < _voiceRows.Count - 1; i++)
+            {
+                int oldPct = (int)Math.Round(_voiceRows[i].WeightSlider.Value);
+                int newPct = (int)Math.Round((double)oldPct / currentSum * 100);
+                _voiceRows[i].WeightSlider.Value = newPct;
+                _voiceRows[i].WeightLabel.Text   = $"{newPct}%";
+                distributed += newPct;
+            }
+            int last = 100 - distributed;
+            _voiceRows[^1].WeightSlider.Value = Math.Max(0, last);
+            _voiceRows[^1].WeightLabel.Text   = $"{Math.Max(0, last)}%";
+        }
+        finally { _adjustingWeights = false; }
     }
 
     private void SaveVoiceProfile()
@@ -183,8 +299,9 @@ public partial class CharacterEditWindow : Window
         foreach (var row in _voiceRows)
         {
             var name = row.VoiceBox.Text.Trim();
-            if (string.IsNullOrEmpty(name)) continue;
-            p.Voices.Add(new VoiceWeight { Voice = name, Weight = Math.Max(0.01f, (float)row.WeightSlider.Value) });
+            var pct  = (float)row.WeightSlider.Value;
+            if (string.IsNullOrEmpty(name) || pct <= 0f) continue;
+            p.Voices.Add(new VoiceWeight { Voice = name, Weight = pct / 100f });
         }
 
         p.Speed          = (float)Math.Clamp(SpeedSlider.Value,  0.5, 2.0);
