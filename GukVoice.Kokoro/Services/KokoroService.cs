@@ -142,30 +142,35 @@ public sealed class KokoroService : IDisposable
         var voices = profile.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
         if (voices.Count == 0) return ([], SampleRate);
 
-        // Kokoro blends voices at the model level via speaker-embedding interpolation.
-        // Pass a style string like "0.7*af_sarah+0.3*am_adam" — the model produces one
-        // genuinely new voice, not two streams summed together.
-        var   total     = voices.Sum(v => v.Weight);
-        if (total <= 0f) total = voices.Count;
-        var   styleStr  = voices.Count == 1
-            ? voices[0].Voice
-            : string.Join("+", voices.Select(v => $"{v.Weight / total:F2}*{v.Voice}"));
+        // VoiceStyle blending exists in the native Kokoro model but is not exposed by the
+        // C# bindings in sherpa-onnx 1.13.2 — Generate only accepts an integer speaker ID.
+        // Weighted random selection per utterance is the practical alternative: weights control
+        // how often each voice is chosen, so across many lines the character sounds like a blend.
+        var entry = voices.Count == 1 ? voices[0] : PickWeighted(voices);
 
         try
         {
-            var genConfig = new OfflineTtsGenerationConfig
-            {
-                Speed      = profile.Speed,
-                Sid        = 0,
-                VoiceStyle = styleStr,
-            };
-            var result = _tts!.Generate(text, genConfig);
+            var result = _tts!.Generate(text, profile.Speed, ResolveSid(entry.Voice));
             if (result?.Samples?.Length > 0)
                 return (result.Samples, result.SampleRate > 0 ? result.SampleRate : SampleRate);
         }
         catch { }
 
         return ([], SampleRate);
+    }
+
+    private static VoiceWeight PickWeighted(List<VoiceWeight> voices)
+    {
+        var   total = voices.Sum(v => v.Weight);
+        if (total <= 0f) return voices[0];
+        var   pick  = (float)(Random.Shared.NextDouble() * total);
+        float cumul = 0f;
+        foreach (var v in voices)
+        {
+            cumul += v.Weight;
+            if (pick <= cumul) return v;
+        }
+        return voices[^1];
     }
 
     // ── Post-processing ────────────────────────────────────────────────────────
