@@ -76,12 +76,19 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         ToggleMonitoringCommand = new RelayCommand(_ => ToggleMonitoring());
 
         if (KokoroService.IsModelReady(AppConfig.TtsFolder))
-            _kokoro.Initialize();
+        {
+            try { _kokoro.Initialize(); }
+            catch (Exception ex) { StatusText = $"TTS init failed: {ex.Message}"; }
+        }
 
         _watcher.Start();
         _processMonitor.Start();
         IsWatching = true;
-        StatusText = $"Watching: {Path.GetFileName(AppConfig.Current.EqLogPath)}";
+
+        var watchFile = Path.GetFileName(AppConfig.Current.EqLogPath);
+        StatusText = _kokoro.IsInitialized
+            ? $"Watching: {watchFile}"
+            : $"Watching: {watchFile}  ⚠ TTS model not found — copy model files to data\\tts\\";
     }
 
     // ── Log processing ─────────────────────────────────────────────────────────
@@ -116,32 +123,32 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         {
             ActivityFeed.Insert(0, item);
             if (ActivityFeed.Count > MaxFeedItems) ActivityFeed.RemoveAt(ActivityFeed.Count - 1);
+
+            // Route chat to TTS — done here (UI thread) so Speakers collection access is safe
+            if (ev.Type == LogEventType.Chat)
+            {
+                var speakerItem = Speakers.FirstOrDefault(s =>
+                    s.Profile.Enabled &&
+                    s.Name.Equals(ev.Speaker, StringComparison.OrdinalIgnoreCase));
+                if (speakerItem != null)
+                    _ttsQueue.Enqueue(speakerItem.Profile, ev.Text);
+            }
+
+            // Route feed events to TTS if a voice is configured for that event type
+            var settings = AppConfig.Current;
+            VoiceProfile? eventVoice = ev.Type switch
+            {
+                LogEventType.Zone       => settings.ZoneVoice,
+                LogEventType.Experience => settings.ExpVoice,
+                LogEventType.Loot       => settings.LootVoice,
+                _                       => null,
+            };
+            if (eventVoice?.IsEnabled == true)
+            {
+                var narr = new SpeakerProfile { Name = "_event", VoiceProfile = eventVoice, Enabled = true };
+                _ttsQueue.Enqueue(narr, ev.Text);
+            }
         });
-
-        // Route chat to TTS if the speaker is in our sidebar
-        if (ev.Type == LogEventType.Chat)
-        {
-            var speakerItem = Speakers.FirstOrDefault(s =>
-                s.Profile.Enabled &&
-                s.Name.Equals(ev.Speaker, StringComparison.OrdinalIgnoreCase));
-            if (speakerItem != null)
-                _ttsQueue.Enqueue(speakerItem.Profile, ev.Text);
-        }
-
-        // Route feed events to TTS if a voice is configured for that event type
-        var settings = AppConfig.Current;
-        VoiceProfile? eventVoice = ev.Type switch
-        {
-            LogEventType.Zone       => settings.ZoneVoice,
-            LogEventType.Experience => settings.ExpVoice,
-            LogEventType.Loot       => settings.LootVoice,
-            _                       => null,
-        };
-        if (eventVoice?.IsEnabled == true)
-        {
-            var narr = new SpeakerProfile { Name = "_event", VoiceProfile = eventVoice, Enabled = true };
-            _ttsQueue.Enqueue(narr, ev.Text);
-        }
     }
 
     // ── EQ process events ──────────────────────────────────────────────────────
