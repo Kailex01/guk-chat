@@ -106,33 +106,33 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
     private void HandleLogEvent(LogEvent ev)
     {
-        // Map log event type → activity item tag text
         var tag = ev.Type == LogEventType.Chat
             ? ev.Speaker.ToUpperInvariant()
             : ev.Type.ToString().ToUpperInvariant();
 
-        var item = new ActivityItem
-        {
-            Type = ev.Type,
-            Tag  = tag,
-            Text = ev.Text,
-            Time = ev.Time.ToString("HH:mm"),
-        };
-
         Application.Current.Dispatcher.Invoke(() =>
         {
+            // Speaker lookup first so IsMatched can colour the feed item
+            SpeakerItem? speakerItem = null;
+            if (ev.Type == LogEventType.Chat)
+                speakerItem = Speakers.FirstOrDefault(s =>
+                    s.Profile.Enabled &&
+                    s.Name.Equals(ev.Speaker, StringComparison.OrdinalIgnoreCase));
+
+            var item = new ActivityItem
+            {
+                Type      = ev.Type,
+                Tag       = tag,
+                Text      = ev.Text,
+                Time      = ev.Time.ToString("HH:mm"),
+                IsMatched = speakerItem != null,
+            };
+
             ActivityFeed.Insert(0, item);
             if (ActivityFeed.Count > MaxFeedItems) ActivityFeed.RemoveAt(ActivityFeed.Count - 1);
 
-            // Route chat to TTS — done here (UI thread) so Speakers collection access is safe
-            if (ev.Type == LogEventType.Chat)
-            {
-                var speakerItem = Speakers.FirstOrDefault(s =>
-                    s.Profile.Enabled &&
-                    s.Name.Equals(ev.Speaker, StringComparison.OrdinalIgnoreCase));
-                if (speakerItem != null)
-                    _ttsQueue.Enqueue(speakerItem.Profile, ev.Text);
-            }
+            if (speakerItem != null)
+                _ttsQueue.Enqueue(speakerItem.Profile, ev.Text);
 
             // Route feed events to TTS if a voice is configured for that event type
             var settings = AppConfig.Current;
