@@ -39,6 +39,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
     public ICommand RemoveSpeakerCommand    { get; }
     public ICommand ToggleMonitoringCommand { get; }
     public ICommand OpenSettingsCommand     { get; }
+    public ICommand ReloadTtsCommand        { get; }
 
     // ── Constructor ────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         RemoveSpeakerCommand    = new RelayCommand(o => OnRemoveSpeaker(o as SpeakerItem));
         ToggleMonitoringCommand = new RelayCommand(_ => ToggleMonitoring());
         OpenSettingsCommand     = new RelayCommand(_ => new SettingsWindow().ShowDialog());
+        ReloadTtsCommand        = new RelayCommand(_ => OnReloadTts());
 
         if (KokoroService.IsModelReady(AppConfig.TtsFolder))
         {
@@ -92,6 +94,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
                         settings.LootVoice,
                     }.OfType<VoiceProfile>());
                 _kokoro.Initialize(allProfiles);
+                StatusText = _kokoro.BlendDiagnostic;
             }
             catch (Exception ex) { StatusText = $"TTS init failed: {ex.Message}"; }
         }
@@ -177,6 +180,25 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
         // Grace period in case of crash/restart
         Task.Delay(60_000).ContinueWith(_ =>
             LogArchiveService.Archive(AppConfig.Current.EqLogPath, folder));
+    }
+
+    // ── TTS reload ────────────────────────────────────────────────────────────
+
+    private void OnReloadTts()
+    {
+        StatusText = "Reloading TTS…";
+        try
+        {
+            var settings    = AppConfig.Current;
+            var allProfiles = settings.Speakers
+                .Select(s => s.VoiceProfile)
+                .Concat(new[] { settings.NarratorVoice, settings.ZoneVoice,
+                                settings.ExpVoice,      settings.LootVoice }
+                    .OfType<VoiceProfile>());
+            _kokoro.Reinitialize(allProfiles);
+            StatusText = _kokoro.BlendDiagnostic;
+        }
+        catch (Exception ex) { StatusText = $"TTS reload failed: {ex.Message}"; }
     }
 
     // ── Monitoring toggle ──────────────────────────────────────────────────────

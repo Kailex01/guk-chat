@@ -11,6 +11,7 @@ public sealed class EqLogWatcher : IDisposable
     private FileStream?      _stream;
     private StreamReader?    _reader;
     private readonly System.Timers.Timer _timer;
+    private int _pollInProgress; // Interlocked flag — prevents concurrent Poll() calls
 
     public event Action<string>? LineReceived;
     public event Action<string>? Error;
@@ -52,17 +53,21 @@ public sealed class EqLogWatcher : IDisposable
 
     private void Poll()
     {
-        if (_reader == null) return;
+        // System.Timers.Timer fires on the thread pool with AutoReset=true.
+        // If a previous Poll() is still blocked in Dispatcher.Invoke, a second
+        // tick would start concurrently and read the same StreamReader — causing
+        // duplicate lines. The Interlocked flag ensures only one Poll() runs at a time.
+        if (Interlocked.Exchange(ref _pollInProgress, 1) != 0) return;
         try
         {
+            if (_reader == null) return;
             string? line;
             while ((line = _reader.ReadLine()) != null)
-            {
                 if (!string.IsNullOrWhiteSpace(line))
                     LineReceived?.Invoke(line);
-            }
         }
         catch { }
+        finally { Interlocked.Exchange(ref _pollInProgress, 0); }
     }
 
     public void Dispose()

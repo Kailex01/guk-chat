@@ -343,6 +343,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Start / Pause toggle -->
@@ -372,8 +373,23 @@
                            VerticalAlignment="Center" Margin="4,0"
                            FontSize="11"/>
 
-                <!-- Settings -->
+                <!-- Reload TTS -->
                 <Button Grid.Column="2"
+                        Command="{Binding ReloadTtsCommand}"
+                        BorderThickness="0" Background="Transparent"
+                        Padding="10,0" Cursor="Hand" VerticalAlignment="Stretch"
+                        ToolTip="Reload TTS model and rebuild voice blends"
+                        Style="{StaticResource DarkButton}">
+                    <Button.ContentTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="↺" FontSize="14"
+                                       Foreground="{StaticResource SubtextBrush}"/>
+                        </DataTemplate>
+                    </Button.ContentTemplate>
+                </Button>
+
+                <!-- Settings -->
+                <Button Grid.Column="3"
                         Command="{Binding OpenSettingsCommand}"
                         BorderThickness="0" Background="Transparent"
                         Padding="10,0" Cursor="Hand" VerticalAlignment="Stretch"

@@ -34,6 +34,21 @@ public sealed class KokoroService : IDisposable
 
     public bool IsInitialized => _tts != null;
 
+    // Diagnostic — shows blend status in the status bar
+    public string BlendDiagnostic => _blendMap.Count > 0
+        ? $"TTS ready — {_blendMap.Count} blend(s) pre-baked (sids {string.Join(",", _blendMap.Values)})"
+        : "TTS ready — no blends active (check voices_custom.bin and model_type.txt)";
+
+    // Tears down the current TTS instance and rebuilds it with fresh profiles.
+    // Safe to call at any time; a brief audio gap may occur if speech is in progress.
+    public void Reinitialize(IEnumerable<VoiceProfile>? profiles = null)
+    {
+        _tts?.Dispose();
+        _tts = null;
+        _blendMap.Clear();
+        Initialize(profiles);
+    }
+
     // ── Initialization ─────────────────────────────────────────────────────────
 
     public void Initialize(IEnumerable<VoiceProfile>? profiles = null)
