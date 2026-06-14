@@ -79,7 +79,20 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (KokoroService.IsModelReady(AppConfig.TtsFolder))
         {
-            try { _kokoro.Initialize(); }
+            try
+            {
+                var settings = AppConfig.Current;
+                var allProfiles = settings.Speakers
+                    .Select(s => s.VoiceProfile)
+                    .Concat(new[]
+                    {
+                        settings.NarratorVoice,
+                        settings.ZoneVoice,
+                        settings.ExpVoice,
+                        settings.LootVoice,
+                    }.OfType<VoiceProfile>());
+                _kokoro.Initialize(allProfiles);
+            }
             catch (Exception ex) { StatusText = $"TTS init failed: {ex.Message}"; }
         }
 

@@ -12,8 +12,14 @@ public sealed class KokoroService : IDisposable
     private OfflineTts?            _tts;
     private IReadOnlyDictionary<string, int> _sidMap = SidsV10;
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly Dictionary<string, int> _blendMap = new();
 
     private const int SampleRate = 24000;
+
+    // Chinese voice sids 45–52 in multi-v1_0 are sacrificed as blend slots.
+    // voices_custom.bin overwrites these with the pre-baked weighted-average embeddings.
+    // Up to 8 simultaneous blend configurations are supported per session.
+    private static readonly int[] BlendSlotsV10 = [52, 51, 50, 49, 48, 47, 46, 45];
 
     public KokoroService(string ttsFolder)
     {
@@ -30,7 +36,7 @@ public sealed class KokoroService : IDisposable
 
     // ── Initialization ─────────────────────────────────────────────────────────
 
-    public void Initialize()
+    public void Initialize(IEnumerable<VoiceProfile>? profiles = null)
     {
         if (_tts != null || !IsModelReady(_ttsFolder)) return;
 
@@ -39,12 +45,19 @@ public sealed class KokoroService : IDisposable
         var modelType  = File.Exists(markerFile) ? File.ReadAllText(markerFile).Trim() : "en-v0_19";
         var isMulti    = modelType != "en-v0_19";
 
+        // _sidMap must be set before PrepareBlendedVoices so ResolveSid works
+        _sidMap = modelType switch
+        {
+            "multi-v1_1" => SidsV11,
+            "multi-v1_0" => SidsV10,
+            _            => SidsV019,
+        };
+
         var onnxFile = Directory.GetFiles(folder, "*.onnx").FirstOrDefault()
             ?? throw new FileNotFoundException("No .onnx model file found in tts folder.");
 
         var config = new OfflineTtsConfig();
         config.Model.Kokoro.Model   = onnxFile;
-        config.Model.Kokoro.Voices  = Path.Combine(folder, "voices.bin");
         config.Model.Kokoro.Tokens  = Path.Combine(folder, "tokens.txt");
         config.Model.Kokoro.DataDir = Path.Combine(folder, "espeak-ng-data");
         config.Model.NumThreads     = 2;
@@ -63,13 +76,12 @@ public sealed class KokoroService : IDisposable
                 config.Model.Kokoro.DictDir = dictDir;
         }
 
-        _tts    = new OfflineTts(config);
-        _sidMap = modelType switch
-        {
-            "multi-v1_1" => SidsV11,
-            "multi-v1_0" => SidsV10,
-            _            => SidsV019,
-        };
+        var originalVoices = Path.Combine(folder, "voices.bin");
+        config.Model.Kokoro.Voices = profiles != null
+            ? PrepareBlendedVoices(originalVoices, profiles)
+            : originalVoices;
+
+        _tts = new OfflineTts(config);
     }
 
     // ── Public API ─────────────────────────────────────────────────────────────
@@ -142,15 +154,23 @@ public sealed class KokoroService : IDisposable
         var voices = profile.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
         if (voices.Count == 0) return ([], SampleRate);
 
-        // VoiceStyle blending exists in the native Kokoro model but is not exposed by the
-        // C# bindings in sherpa-onnx 1.13.2 — Generate only accepts an integer speaker ID.
-        // Weighted random selection per utterance is the practical alternative: weights control
-        // how often each voice is chosen, so across many lines the character sounds like a blend.
-        var entry = voices.Count == 1 ? voices[0] : PickWeighted(voices);
+        int sid;
+        if (voices.Count == 1)
+        {
+            sid = ResolveSid(voices[0].Voice);
+        }
+        else
+        {
+            // Use the pre-baked blend slot if available; fall back to weighted random
+            var sig = BlendSignature(profile);
+            sid = _blendMap.TryGetValue(sig, out var blendSid)
+                ? blendSid
+                : ResolveSid(PickWeighted(voices).Voice);
+        }
 
         try
         {
-            var result = _tts!.Generate(text, profile.Speed, ResolveSid(entry.Voice));
+            var result = _tts!.Generate(text, profile.Speed, sid);
             if (result?.Samples?.Length > 0)
                 return (result.Samples, result.SampleRate > 0 ? result.SampleRate : SampleRate);
         }
@@ -172,6 +192,74 @@ public sealed class KokoroService : IDisposable
         }
         return voices[^1];
     }
+
+    // ── Voice blend pre-baking ─────────────────────────────────────────────────
+
+    private string PrepareBlendedVoices(string originalPath, IEnumerable<VoiceProfile> profiles)
+    {
+        var blendSlots = object.ReferenceEquals(_sidMap, SidsV10) ? BlendSlotsV10 : Array.Empty<int>();
+
+        var blendConfigs = profiles
+            .Where(p => p.Voices.Count(v => !string.IsNullOrWhiteSpace(v.Voice)) >= 2)
+            .GroupBy(BlendSignature)
+            .Select(g => (Profile: g.First(), Sig: g.Key))
+            .Take(blendSlots.Length)
+            .ToList();
+
+        if (blendConfigs.Count == 0 || blendSlots.Length == 0)
+            return originalPath;
+
+        try
+        {
+            var voiceBytes = File.ReadAllBytes(originalPath);
+            var floats     = new float[voiceBytes.Length / sizeof(float)];
+            Buffer.BlockCopy(voiceBytes, 0, floats, 0, voiceBytes.Length);
+
+            int numSpeakers = _sidMap.Values.Max() + 1;
+            int stride      = floats.Length / numSpeakers;
+
+            for (int i = 0; i < blendConfigs.Count; i++)
+            {
+                var (profile, sig) = blendConfigs[i];
+                int slot      = blendSlots[i];
+                int dstOffset = slot * stride;
+
+                var voiceWeights  = profile.Voices
+                    .Where(v => !string.IsNullOrWhiteSpace(v.Voice))
+                    .ToList();
+                float totalWeight = voiceWeights.Sum(v => Math.Max(v.Weight, 0.01f));
+
+                Array.Clear(floats, dstOffset, stride);
+
+                foreach (var vw in voiceWeights)
+                {
+                    int   srcSid   = ResolveSid(vw.Voice);
+                    float w        = vw.Weight / totalWeight;
+                    int   srcOffset = srcSid * stride;
+                    for (int j = 0; j < stride; j++)
+                        floats[dstOffset + j] += w * floats[srcOffset + j];
+                }
+
+                _blendMap[sig] = slot;
+            }
+
+            var customPath = Path.Combine(_ttsFolder, "voices_custom.bin");
+            var outBytes   = new byte[floats.Length * sizeof(float)];
+            Buffer.BlockCopy(floats, 0, outBytes, 0, outBytes.Length);
+            File.WriteAllBytes(customPath, outBytes);
+            return customPath;
+        }
+        catch
+        {
+            return originalPath;
+        }
+    }
+
+    private static string BlendSignature(VoiceProfile profile) =>
+        string.Join("+", profile.Voices
+            .Where(v => !string.IsNullOrWhiteSpace(v.Voice))
+            .OrderBy(v => v.Voice)
+            .Select(v => $"{v.Voice}:{v.Weight:F2}"));
 
     // ── Post-processing ────────────────────────────────────────────────────────
 
