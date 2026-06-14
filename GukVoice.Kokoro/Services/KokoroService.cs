@@ -142,55 +142,36 @@ public sealed class KokoroService : IDisposable
         var voices = profile.Voices.Where(v => !string.IsNullOrWhiteSpace(v.Voice)).ToList();
         if (voices.Count == 0) return ([], SampleRate);
 
-        if (voices.Count == 1)
+        // True audio mixing of two TTS streams sounds like two people talking over each other
+        // because each voice synthesizes with its own independent timing and cadence.
+        // Weighted random selection per utterance is the practical alternative: weights control
+        // how often each voice is chosen, so across many NPC lines the character sounds like
+        // a blend of the configured voices.
+        var entry = voices.Count == 1 ? voices[0] : PickWeighted(voices);
+
+        try
         {
-            try
-            {
-                var result = _tts!.Generate(text, profile.Speed, ResolveSid(voices[0].Voice));
-                if (result?.Samples?.Length > 0)
-                    return (result.Samples, result.SampleRate > 0 ? result.SampleRate : SampleRate);
-            }
-            catch { }
-            return ([], SampleRate);
+            var result = _tts!.Generate(text, profile.Speed, ResolveSid(entry.Voice));
+            if (result?.Samples?.Length > 0)
+                return (result.Samples, result.SampleRate > 0 ? result.SampleRate : SampleRate);
         }
+        catch { }
 
-        // Multiple voices: synthesize each independently then blend by weighted sum.
-        // Each voice contributes (weight / totalWeight) of the final amplitude so the
-        // overall level stays consistent regardless of how many voices are stacked.
-        var totalWeight = voices.Sum(v => v.Weight);
-        if (totalWeight <= 0f) totalWeight = voices.Count;
+        return ([], SampleRate);
+    }
 
-        float[]? mixed  = null;
-        int      outRate = SampleRate;
-
-        foreach (var vw in voices)
+    private static VoiceWeight PickWeighted(List<VoiceWeight> voices)
+    {
+        var   total = voices.Sum(v => v.Weight);
+        if (total <= 0f) return voices[0];
+        var   pick  = (float)(Random.Shared.NextDouble() * total);
+        float cumul = 0f;
+        foreach (var v in voices)
         {
-            try
-            {
-                var result = _tts!.Generate(text, profile.Speed, ResolveSid(vw.Voice));
-                if (result?.Samples?.Length > 0)
-                {
-                    var w   = vw.Weight / totalWeight;
-                    var src = result.Samples;
-                    var sr  = result.SampleRate > 0 ? result.SampleRate : SampleRate;
-
-                    if (mixed == null)
-                    {
-                        outRate = sr;
-                        mixed   = new float[src.Length];
-                        for (int i = 0; i < src.Length; i++) mixed[i] = src[i] * w;
-                    }
-                    else
-                    {
-                        if (src.Length > mixed.Length) Array.Resize(ref mixed, src.Length);
-                        for (int i = 0; i < src.Length; i++) mixed[i] += src[i] * w;
-                    }
-                }
-            }
-            catch { }
+            cumul += v.Weight;
+            if (pick <= cumul) return v;
         }
-
-        return (mixed ?? [], outRate);
+        return voices[^1];
     }
 
     // ── Post-processing ────────────────────────────────────────────────────────
